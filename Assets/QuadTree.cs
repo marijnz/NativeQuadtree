@@ -122,7 +122,7 @@ namespace QuadTree
 				throw new InvalidOperationException();
 			}
 
-			const int totalSize = 2*2+4*4+8*8+16+16+32*32+64*64;
+			const int totalSize = 2*2+4*4+8*8+16+16+32*32+64*64+128*128;
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
@@ -148,7 +148,7 @@ namespace QuadTree
 
 				for (int depth = maxDepth; depth >= 0; depth--)
 				{
-					int level = mortonCode >> (depth*2);
+					int level = mortonCode >> ((maxDepth - depth) *2);
 
 					// Offset by depth and add morton index
 					var index = depthSizeLookup[depth] + level;
@@ -160,7 +160,7 @@ namespace QuadTree
 			}
 
 			// Allocate nodes as needed
-			RecursiveAlloc(0, 2, 0, 0);
+			RecursiveAlloc(0, 1, 0, 0);
 
 			// Add elements to nodes
 			for (var i = 0; i < incomingElements.Length; i++)
@@ -169,7 +169,7 @@ namespace QuadTree
 
 				for (int depth = maxDepth; depth >= 0; depth--)
 				{
-					int level = mortonCode >> (depth*2);
+					int level = mortonCode >> ((maxDepth - depth) *2);
 
 					// Offset by depth and add morton index
 					var index = depthSizeLookup[depth] + level;
@@ -183,14 +183,15 @@ namespace QuadTree
 					}
 				}
 			}
+
+			RecursiveAssert(0, 1, 0, 0);
 		}
 
 		void RecursiveAlloc(int atNode, int parentSize, int totalOffset, int depth)
 		{
-			var totalSizeOfThisDepth = parentSize * parentSize;
-			int oneNodeSize = totalSizeOfThisDepth / 4;
+			var totalWidthThisDepth = parentSize * 2;
 
-			int offset = oneNodeSize * atNode;
+			int offset = parentSize * atNode; // A child's single node size is always it's parent's size
 
 			for (int l = 0; l < 4; l++)
 			{
@@ -198,23 +199,50 @@ namespace QuadTree
 
 				var elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
 
-				if(elementCount > maxLeafElements && depth <= maxDepth)
+				if(elementCount > maxLeafElements && depth < maxDepth)
 				{
-					totalOffset += (totalSizeOfThisDepth * totalSizeOfThisDepth);
-					RecursiveAlloc(l, totalSizeOfThisDepth, totalOffset, ++depth);
+					RecursiveAlloc(l, totalWidthThisDepth, totalOffset +
+					                                       (totalWidthThisDepth*totalWidthThisDepth), depth+1);
 				}
-				else
+				else if(elementCount != 0)
 				{
 					AllocElementsForQuadNode(at, elementCount);
 				}
 			}
 		}
 
+
 		void AllocElementsForQuadNode(int nodeIndex, int count)
 		{
 			var node = new QuadNode{ firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) count};
 			UnsafeUtility.WriteArrayElement(nodesQuick->Ptr, nodeIndex, node);
 			elementsCount += count;
+		}
+
+		void RecursiveAssert(int atNode, int parentSize, int totalOffset, int depth)
+		{
+			var totalWidthThisDepth = parentSize * 2;
+			int oneNodeSize = totalWidthThisDepth / 2;
+
+			int offset = oneNodeSize * atNode;
+
+			for (int l = 0; l < 4; l++)
+			{
+				var at = totalOffset + offset + l;
+
+				var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodesQuick->Ptr, at);
+
+				Debug.Assert(node.count == node.elementsCapacity);
+			}
+
+			if(depth < maxDepth)
+			{
+				for (int l = 0; l < 4; l++)
+				{
+					RecursiveAssert(l, totalWidthThisDepth, totalOffset +
+					                                        (totalWidthThisDepth*totalWidthThisDepth), depth+1);
+				}
+			}
 		}
 
 		public void InsertElement(QuadElement<T> element)
