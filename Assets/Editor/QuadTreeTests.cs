@@ -22,12 +22,12 @@ public class QuadTreeTests
         });
     }
 
-    AABB2D Bounds => new AABB2D(0, 64);
+    AABB2D Bounds => new AABB2D(0, 256);
 
 
     float2[] GetValues()
     {
-        var values = new float2[20000];
+        var values = new float2[200000];
 
         //var mortonValues = new uint[values.Length];
 
@@ -37,7 +37,7 @@ public class QuadTreeTests
 
         for (int x = 0; x < values.Length; x++)
         {
-            var val = new int2((int) Random.Range(0, 63), (int) Random.Range(0, 63));
+            var val = new int2((int) Random.Range(0, 255), (int) Random.Range(0, 255));
             //var val = RandomPoint(0, 2, 0.1f) * 5;
             //var someString = Convert.ToString((byte) mortonVal, 2).PadLeft(8, '0');
 

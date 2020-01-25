@@ -67,6 +67,21 @@ namespace QuadTree
 			2*2+4*4+8*8+16+16,
 			2*2+4*4+8*8+16+16+32*32,
 			2*2+4*4+8*8+16+16+32*32+64*64,
+			2*2+4*4+8*8+16+16+32*32+64*64+128*128,
+			2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256
+		};
+
+		static readonly int[] depthLookup =
+		{
+			0,
+			2,
+			4,
+			8,
+			16,
+			32,
+			64,
+			128,
+			256,
 		};
 
 		struct QuadNode
@@ -101,6 +116,11 @@ namespace QuadTree
 		[NativeDisableUnsafePtrRestriction]
 		UnsafeList* nodesQuick;
 
+		/// <summary>
+		/// Create a new QuadTree.
+		/// - Ensure the bounds are not way bigger than needed, otherwise the buckets are very off. Probably best to calculate bounds
+		/// - The higher the depth, the larger the overhead, it especially goes up at a depth of 7/8
+		/// </summary>
 		public NativeQuadTree(AABB2D bounds, int maxDepth = 6, short maxLeafElements = 8,
 			int initialElementsCapacity = 300000, int initialNodesCapacity = 300000) : this()
 		{
@@ -117,12 +137,12 @@ namespace QuadTree
 
 			AllocQuadNode(); // Root node
 
-			if(maxDepth > 6)
+			if(maxDepth > 8)
 			{
 				throw new InvalidOperationException();
 			}
 
-			const int totalSize = 2*2+4*4+8*8+16+16+32*32+64*64+128*128;
+			const int totalSize = 2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256+512*512;
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
@@ -139,12 +159,21 @@ namespace QuadTree
 
 		public void BulkInsert(NativeArray<QuadElement<T>> incomingElements)
 		{
-			//TODO Remap values to 0-64 range
+			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
 
-			// Index total child element count per node (so including those of child nodes)
+			// Remapping values to range of depth
+			int depthRemapMult = (int) (depthLookup[maxDepth] / bounds.Extents.x);
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
-				var mortonCode = GetMortonCode(incomingElements[i]);
+				var pos = (int2) (incomingElements[i].pos * depthRemapMult);
+				mortonCodes[i] = mortonLookup[pos.x] | (mortonLookup[pos.y] << 1);
+			}
+
+
+			// Index total child element count per node (so including those of child nodes)
+			for (var i = 0; i < mortonCodes.Length; i++)
+			{
+				var mortonCode = mortonCodes[i];
 
 				for (int depth = maxDepth; depth >= 0; depth--)
 				{
@@ -163,9 +192,9 @@ namespace QuadTree
 			RecursiveAlloc(0, 1, 0, 0);
 
 			// Add elements to nodes
-			for (var i = 0; i < incomingElements.Length; i++)
+			for (var i = 0; i < mortonCodes.Length; i++)
 			{
-				var mortonCode = GetMortonCode(incomingElements[i]);
+				var mortonCode = mortonCodes[i];
 
 				for (int depth = maxDepth; depth >= 0; depth--)
 				{
@@ -183,7 +212,6 @@ namespace QuadTree
 					}
 				}
 			}
-
 			RecursiveAssert(0, 1, 0, 0);
 		}
 
@@ -253,12 +281,6 @@ namespace QuadTree
 			}
 
 			InsertElement(bounds, 0, element, 0);
-		}
-
-		int GetMortonCode(QuadElement<T> element)
-		{
-			var pos = (int2) element.pos;
-			return mortonLookup[pos.x] | (mortonLookup[pos.y] << 1);
 		}
 
 		void InsertElement(AABB2D nodeBounds, int nodeIndex, QuadElement<T> element, int depth) {
