@@ -42,5 +42,18 @@ namespace QuadTree
 			       Contains(b.Center + new float2(b.Extents.x, -b.Extents.y)) &&
 			       Contains(b.Center + new float2(b.Extents.x, b.Extents.y));
 		}
+
+		public bool Intersects(AABB2D b)
+		{
+			//bool noOverlap = Min[0] > b.Max[0] ||
+			//                 b.Min[0] > Max[0]||
+			//                 Min[1] > b.Max[1] ||
+			//                 b.Min[1] > Max[1];
+//
+			//return !noOverlap;
+
+			return (math.abs(Center[0] - b.Center[0]) < (Extents[0] + b.Extents[0])) &&
+			       (math.abs(Center[1] - b.Center[1]) < (Extents[1] + b.Extents[1]));
+		}
 	}
 }

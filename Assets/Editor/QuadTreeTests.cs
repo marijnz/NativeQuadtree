@@ -22,32 +22,19 @@ public class QuadTreeTests
         });
     }
 
-    AABB2D Bounds => new AABB2D(0, 256);
-
+    AABB2D Bounds => new AABB2D(0, 1000);
 
     float2[] GetValues()
     {
-        var values = new float2[200000];
-
-        //var mortonValues = new uint[values.Length];
-
-        const int size = 400;
-
-        var mult = byte.MaxValue / size;
+        Random.InitState(0);
+        var values = new float2[5000];
 
         for (int x = 0; x < values.Length; x++)
         {
-            var val = new int2((int) Random.Range(0, 255), (int) Random.Range(0, 255));
-            //var val = RandomPoint(0, 2, 0.1f) * 5;
-            //var someString = Convert.ToString((byte) mortonVal, 2).PadLeft(8, '0');
-
-            //string someString = Decimal.GetBits(mortonVal).Select(t => t.ToString()).Aggregate((t, b) => t + "" + b);
-
+            var val = new int2((int) Random.Range(-900, 900), (int) Random.Range(-900, 900));
             values[x] = val;
-            //mortonValues[x] = (uint) MortonCode2( (uint) (val.x * mult),  (uint)(val.y * mult));;
         }
 
-        //  Array.Sort(mortonValues, values);
         return values;
     }
 
@@ -98,8 +85,7 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-
-        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+        var elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
 
         for (int i = 0; i < values.Length; i++)
         {
@@ -110,7 +96,7 @@ public class QuadTreeTests
             };
         }
 
-        var job = new AddBulkJob()
+        var job = new QuadTreeJobs.AddBulkJob<int>
         {
             Elements = elements,
             QuadTree = new NativeQuadTree<int>(Bounds)
@@ -126,6 +112,43 @@ public class QuadTreeTests
         QuadTreeDrawer.Draw(job.QuadTree);
         job.QuadTree.Dispose();
         elements.Dispose();
+    }
+
+    [Test]
+    public void RangeQueryAfterBulk()
+    {
+        var values = GetValues();
+
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            elements[i] = new QuadElement<int>
+            {
+                pos = values[i],
+                element = i
+            };
+        }
+
+        var quadTree = new NativeQuadTree<int>(Bounds);
+        quadTree.BulkInsert(elements);
+
+        var queryJob = new QuadTreeJobs.RangeQueryJob<int>
+        {
+            QuadTree = quadTree,
+            Bounds = new AABB2D(100, 140),
+            Results = new NativeList<QuadElement<int>>(100000, Allocator.TempJob)
+        };
+
+        var s = Stopwatch.StartNew();
+        queryJob.Run();
+        s.Stop();
+        Debug.Log(s.Elapsed.TotalMilliseconds + " result: " + queryJob.Results.Length);
+
+        QuadTreeDrawer.DrawWithResults(queryJob);
+        quadTree.Dispose();
+        elements.Dispose();
+        queryJob.Results.Dispose();
     }
 
     [Test]
@@ -186,20 +209,6 @@ public class QuadTreeTests
         positions.Dispose();
 
     }
-
-    [BurstCompile]
-    struct AddBulkJob : IJob
-    {
-        [ReadOnly]
-        public NativeArray<QuadElement<int>> Elements;
-
-        public NativeQuadTree<int> QuadTree;
-
-        public void Execute()
-        {
-           QuadTree.BulkInsert(Elements);
-       }
-   }
 
     [BurstCompile]
     struct AddJob : IJob

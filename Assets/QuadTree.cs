@@ -61,14 +61,14 @@ namespace QuadTree
 		static readonly int[] depthSizeLookup =
 		{
 			0,
-			2*2,
-			2*2+4*4,
-			2*2+4*4+8*8,
-			2*2+4*4+8*8+16+16,
-			2*2+4*4+8*8+16+16+32*32,
-			2*2+4*4+8*8+16+16+32*32+64*64,
-			2*2+4*4+8*8+16+16+32*32+64*64+128*128,
-			2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256
+			1,
+			1+2*2,
+			1+2*2+4*4,
+			1+2*2+4*4+8*8,
+			1+2*2+4*4+8*8+16+16,
+			1+2*2+4*4+8*8+16+16+32*32,
+			1+2*2+4*4+8*8+16+16+32*32+64*64,
+			1+2*2+4*4+8*8+16+16+32*32+64*64+128*128,
 		};
 
 		static readonly int[] depthLookup =
@@ -97,9 +97,12 @@ namespace QuadTree
 			public short elementsCapacity;
 		}
 
-		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* nodes;
-		int nodesCount;
+		struct RangeQueryInstruction
+		{
+			public NativeList<QuadElement<T>> Results;
+			public AABB2D Bounds;
+		}
+
 		[NativeDisableUnsafePtrRestriction]
 		UnsafeList* elements;
 
@@ -121,7 +124,7 @@ namespace QuadTree
 		/// - Ensure the bounds are not way bigger than needed, otherwise the buckets are very off. Probably best to calculate bounds
 		/// - The higher the depth, the larger the overhead, it especially goes up at a depth of 7/8
 		/// </summary>
-		public NativeQuadTree(AABB2D bounds, int maxDepth = 6, short maxLeafElements = 8,
+		public NativeQuadTree(AABB2D bounds, int maxDepth = 6, short maxLeafElements = 16,
 			int initialElementsCapacity = 300000, int initialNodesCapacity = 300000) : this()
 		{
 			CollectionHelper.CheckIsUnmanaged<T>();
@@ -130,19 +133,15 @@ namespace QuadTree
 			this.maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
 			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(), UnsafeUtility.AlignOf<QuadElement<T>>(), initialElementsCapacity, Allocator.Persistent);
-			nodes = UnsafeList.Create(UnsafeUtility.SizeOf<QuadNode>(), UnsafeUtility.AlignOf<QuadNode>(), initialNodesCapacity, Allocator.Persistent);
 
-			nodesCount = 0;
 			elementsCount = 0;
-
-			AllocQuadNode(); // Root node
 
 			if(maxDepth > 8)
 			{
 				throw new InvalidOperationException();
 			}
 
-			const int totalSize = 2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256+512*512;
+			const int totalSize = 1+2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256+512*512;
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
@@ -162,13 +161,14 @@ namespace QuadTree
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
 
 			// Remapping values to range of depth
-			int depthRemapMult = (int) (depthLookup[maxDepth] / bounds.Extents.x);
+			var depthRemapMult = (depthLookup[maxDepth] / (bounds.Extents.x ));
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
-				var pos = (int2) (incomingElements[i].pos * depthRemapMult);
+				var incPos = incomingElements[i].pos;
+				incPos.y = -incPos.y; // world -> array
+				var pos = (int2) ((incPos + bounds.Extents) * .5f * depthRemapMult);
 				mortonCodes[i] = mortonLookup[pos.x] | (mortonLookup[pos.y] << 1);
 			}
-
 
 			// Index total child element count per node (so including those of child nodes)
 			for (var i = 0; i < mortonCodes.Length; i++)
@@ -185,11 +185,9 @@ namespace QuadTree
 					// +1 to that node lookup
 					(*(int*) ((IntPtr) lookup->Ptr + index * sizeof (int)))++;
 				}
-
 			}
 
-			// Allocate nodes as needed
-			RecursiveAlloc(0, 1, 0, 0);
+			RecursiveAlloc(0, 0);
 
 			// Add elements to nodes
 			for (var i = 0; i < mortonCodes.Length; i++)
@@ -212,39 +210,93 @@ namespace QuadTree
 					}
 				}
 			}
-			RecursiveAssert(0, 1, 0, 0);
+			mortonCodes.Dispose();
 		}
 
-		void RecursiveAlloc(int atNode, int parentSize, int totalOffset, int depth)
+		void RecursiveAlloc(int atNode, int depth)
 		{
-			var totalWidthThisDepth = parentSize * 2;
-
-			int offset = parentSize * atNode; // A child's single node size is always it's parent's size
+			var totalOffset = depthSizeLookup[++depth];
 
 			for (int l = 0; l < 4; l++)
 			{
-				var at = totalOffset + offset + l;
+				var at = totalOffset + atNode + l;
 
 				var elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
 
 				if(elementCount > maxLeafElements && depth < maxDepth)
 				{
-					RecursiveAlloc(l, totalWidthThisDepth, totalOffset +
-					                                       (totalWidthThisDepth*totalWidthThisDepth), depth+1);
+					RecursiveAlloc((atNode + l) * 4, depth);
 				}
 				else if(elementCount != 0)
 				{
-					AllocElementsForQuadNode(at, elementCount);
+					// Alloc node
+					var node = new QuadNode {firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) elementCount};
+					UnsafeUtility.WriteArrayElement(nodesQuick->Ptr, at, node);
+					elementsCount += elementCount;
 				}
 			}
 		}
 
-
-		void AllocElementsForQuadNode(int nodeIndex, int count)
+		public void RangeQuery(AABB2D bounds, NativeList<QuadElement<T>> results)
 		{
-			var node = new QuadNode{ firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) count};
-			UnsafeUtility.WriteArrayElement(nodesQuick->Ptr, nodeIndex, node);
-			elementsCount += count;
+			var query = new RangeQueryInstruction
+			{
+				Bounds = bounds,
+				Results = results
+			};
+			RecursiveRangeQuery(ref query, this.bounds, false, 0, 0);
+		}
+
+		void RecursiveRangeQuery(ref RangeQueryInstruction query, AABB2D fromBounds, bool parentContained, int atNode, int depth)
+		{
+			var totalOffset = depthSizeLookup[++depth];
+
+			for (int l = 0; l < 4; l++)
+			{
+				var childBounds = GetChildBounds(fromBounds, l);
+
+				var contained = parentContained;
+				if(!contained)
+				{
+					if(query.Bounds.Contains(childBounds))
+					{
+						contained = true;
+					}
+					else if(!query.Bounds.Intersects(childBounds))
+					{
+						continue;
+					}
+				}
+
+				var at = totalOffset + atNode + l;
+				var elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
+
+				if(elementCount > maxLeafElements && depth < maxDepth)
+				{
+					RecursiveRangeQuery( ref query, childBounds, contained, (atNode + l) * 4, depth);
+				}
+				else if(elementCount != 0)
+				{
+					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodesQuick->Ptr, at);
+
+					if(contained)
+					{
+						var index = (void*) ((IntPtr) elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
+						query.Results.AddRange(index, node.count);
+					}
+					else
+					{
+						for (int k = 0; k < node.count; k++)
+						{
+							var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(elements->Ptr, node.firstChildIndex + k);
+							if(query.Bounds.Contains(element.pos))
+							{
+								query.Results.Add(element);
+							}
+						}
+					}
+				}
+			}
 		}
 
 		void RecursiveAssert(int atNode, int parentSize, int totalOffset, int depth)
@@ -260,7 +312,10 @@ namespace QuadTree
 
 				var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodesQuick->Ptr, at);
 
-				Debug.Assert(node.count == node.elementsCapacity);
+				if(node.count != node.elementsCapacity)
+				{
+					Debug.Assert(node.count == node.elementsCapacity);
+				}
 			}
 
 			if(depth < maxDepth)
@@ -273,189 +328,32 @@ namespace QuadTree
 			}
 		}
 
-		public void InsertElement(QuadElement<T> element)
-		{
-			if(!bounds.Contains(element.pos))
-			{
-				return;
-			}
-
-			InsertElement(bounds, 0, element, 0);
-		}
-
-		void InsertElement(AABB2D nodeBounds, int nodeIndex, QuadElement<T> element, int depth) {
-			var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, nodeIndex);
-			/*
-#if NATIVE_QUAD_TREE_DEBUG
-			Debug.Assert(nodeBounds.Contains(element.pos));
-			if(!nodeBounds.Contains(element.pos))
-			{
-				//Debug.Log(nodeBounds + " " + element.pos + " " + ((element.element).ToString()));
-				return;
-			}
-
-			if(depth > 150)
-			{
-				throw new Exception();
-			}
-#endif*/
-
-			if(node.elementsCapacity != -1)
-			{
-				// We are in a leaf
-				if(node.count < node.elementsCapacity)
-				{
-					// There's space for another element, so add it
-					UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, element);
-					node.count++;
-					UnsafeUtility.WriteArrayElement(nodes->Ptr, nodeIndex, node);
-				}
-				else if(depth >= maxDepth)
-				{
-					// We hit max capacity of elements but are at max depth, so expand
-					ExpandQuadNodeElements(ref node);
-
-					// Now there's space, so add it
-					UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, element);
-					node.count++;
-					UnsafeUtility.WriteArrayElement(nodes->Ptr, nodeIndex, node);
-				}
-				else
-				{
-					// No space for another element and we didn't hit max depth yet, so subdivide
-
-					// Allocate child nodes
-					node.elementsCapacity = -1;
-					// TODO: free up capacity memory
-					var elementsFirstChild = node.firstChildIndex;
-
-					EnsureNodesCapacity(nodesCount+4);
-					EnsureElementsCapacity(elementsCount + (maxLeafElements * 4));
-
-					node.firstChildIndex = AllocQuadNode(); // Top left
-					AllocQuadNode(); // Top right
-					AllocQuadNode(); // Bottom left
-					AllocQuadNode(); // Bottom right
-
-					UnsafeUtility.WriteArrayElement(nodes->Ptr, nodeIndex, node);
-
-					// Trickle elements down to newly created child nodes
-					for (int i = 0; i < maxLeafElements; i++)
-					{
-						int index = elementsFirstChild + i;
-						var leafElement = UnsafeUtility.ReadArrayElement<QuadElement<T>>(elements->Ptr,
-							index);
-						InsertElement(nodeBounds, nodeIndex, leafElement, depth+1);
-					}
-
-					// And add the element..
-					InsertElement(nodeBounds, nodeIndex, element, depth+1);
-				}
-			}
-			else
-			{
-				// We are not in a leaf
-				var pos = element.pos;
-				if(pos.x < nodeBounds.Center.x)
-				{
-					if(pos.y > nodeBounds.Center.y)
-						InsertElement(GetTopLeft(nodeBounds), node.firstChildIndex, element, depth+1);
-					else
-						InsertElement(GetBottomLeft(nodeBounds), node.firstChildIndex+1, element, depth+1);
-				}
-				else
-				{
-					if(pos.y > nodeBounds.Center.y)
-						InsertElement(GetTopRight(nodeBounds), node.firstChildIndex+2, element, depth+1);
-					else
-						InsertElement(GetBottomRight(nodeBounds), node.firstChildIndex+3, element, depth+1);
-				}
-			}
-		}
-
-		int AllocQuadNode()
-		{
-			var node = new QuadNode{ firstChildIndex = elementsCount, elementsCapacity = maxLeafElements};
-			UnsafeUtility.WriteArrayElement(nodes->Ptr, nodesCount, node);
-			nodesCount++;
-			elementsCount += maxLeafElements;
-			return nodesCount-1;
-		}
-
-		void ExpandQuadNodeElements(ref QuadNode quadNode)
-		{
-			var newCapacity = (short) (quadNode.elementsCapacity * 2);
-			EnsureElementsCapacity(elementsCount + newCapacity);
-
-			UnsafeUtility.MemCpy(
-				(void*) ((IntPtr) elements->Ptr + elementsCount * UnsafeUtility.SizeOf<T>()),
-				(void*) ((IntPtr) elements->Ptr + quadNode.firstChildIndex * UnsafeUtility.SizeOf<T>()),
-				quadNode.elementsCapacity * UnsafeUtility.SizeOf<T>());
-
-			//TODO cleanup old memory
-
-			quadNode.elementsCapacity = newCapacity;
-			elementsCount += newCapacity;
-		}
-
-		void EnsureNodesCapacity(int capacity)
-		{
-			if(nodes->Capacity < capacity)
-			{
-				nodes->SetCapacity<T>(math.max(nodes->Capacity*2, capacity));
-			}
-		}
-
-		void EnsureElementsCapacity(int capacity)
-		{
-			if(elements->Capacity < capacity)
-			{
-				elements->SetCapacity<T>(math.max(elements->Capacity*2, capacity));
-			}
-		}
-
 		public void Dispose()
 		{
-			UnsafeList.Destroy(nodes);
-			nodes = null;
 			UnsafeList.Destroy(elements);
 			elements = null;
 			UnsafeList.Destroy(lookup);
 			lookup = null;
+			UnsafeList.Destroy(nodesQuick);
+			nodesQuick = null;
 		}
 
-		static AABB2D GetBottomRight(AABB2D nodeBounds)
+		static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
 		{
-			var half = nodeBounds.Extents.x * .5f;
-			return new AABB2D(new float2(nodeBounds.Center.x + half, nodeBounds.Center.y - half), half);
+			var half = parentBounds.Extents.x * .5f;
+
+			switch (childZIndex)
+			{
+				case 0: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y + half), half);
+				case 1: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y + half), half);
+				case 2: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y - half), half);
+				case 3: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y - half), half);
+				default: throw new Exception();
+			}
 		}
 
-		static AABB2D GetTopRight(AABB2D nodeBounds)
-		{
-			var half = nodeBounds.Extents.x * .5f;
-			return new AABB2D(new float2(nodeBounds.Center.x + half, nodeBounds.Center.y + half), half);
-		}
-
-		static AABB2D GetTopLeft(AABB2D nodeBounds)
-		{
-			var half = nodeBounds.Extents.x * .5f;
-			return new AABB2D(new float2(nodeBounds.Center.x - half, nodeBounds.Center.y + half), nodeBounds.Extents / 2);
-		}
-
-		static AABB2D GetBottomLeft(AABB2D nodeBounds)
-		{
-			var half = nodeBounds.Extents.x * .5f;
-			return new AABB2D(new float2(nodeBounds.Center.x - half, nodeBounds.Center.y - half), half);
-		}
-
-		public static void Draw(NativeQuadTree<T> tree, Color[][] texture)
-		{
-			DrawOld(tree, texture);
-
-			//TODO draw bulk
-		}
-
-		static void DrawOld(NativeQuadTree<T> tree, Color[][] texture)
+		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range,
+			Color[][] texture)
 		{
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
@@ -463,47 +361,81 @@ namespace QuadTree
 			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
 			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
 
-			Draw(tree.bounds, 0);
-
-			void Draw(AABB2D bounds, int nodeIndex)
+			for (int i = 0; i < tree.nodesQuick->Capacity; i++)
 			{
-				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, nodeIndex);
+				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodesQuick->Ptr, i);
 
-				if (node.elementsCapacity != -1)
+				if(node.count > 0)
 				{
-					for (int i = 0; i < node.count; i++)
+					for (int k = 0; k < node.count; k++)
 					{
 						var element =
-							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + i);
+							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
 
 						texture[(int) ((element.pos.x + widthAdd) * widthMult)]
 							[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.red;
 					}
 				}
-				else
-				{
-					var top = new float2(bounds.Center.x, bounds.Center.y - bounds.Extents.y);
-					var left = new float2(bounds.Center.x - bounds.Extents.x, bounds.Center.y);
+			}
 
-					for (int leftToRight = 0; leftToRight < bounds.Extents.x * 2; leftToRight++)
-					{
-						var poxX = left.x + leftToRight;
-						texture[(int) ((poxX + widthAdd) * widthMult)]
-							[(int) ((bounds.Center.y + heightAdd) * heightMult)] = Color.blue;
-					}
+			foreach (var element in results)
+			{
+				texture[(int) ((element.pos.x + widthAdd) * widthMult)]
+					[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.green;
+			}
 
-					for (int topToBottom = 0; topToBottom < bounds.Extents.y * 2; topToBottom++)
-					{
-						var posY = top.y + topToBottom;
-						texture[(int) ((bounds.Center.x + widthAdd) * widthMult)]
-							[(int) ((posY + heightAdd) * heightMult)] = Color.blue;
-					}
+			DrawBounds(texture, range, tree);
+		}
 
-					Draw(GetTopLeft(bounds), node.firstChildIndex);
-					Draw(GetBottomLeft(bounds), node.firstChildIndex + 1);
-					Draw(GetTopRight(bounds), node.firstChildIndex + 2);
-					Draw(GetBottomRight(bounds), node.firstChildIndex + 3);
-				}
+		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
+		{
+			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
+			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
+
+			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
+			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
+
+			var top = new float2(bounds.Center.x, bounds.Center.y - bounds.Extents.y);
+			var left = new float2(bounds.Center.x - bounds.Extents.x, bounds.Center.y);
+
+			for (int leftToRight = 0; leftToRight < bounds.Extents.x * 2; leftToRight++)
+			{
+				var poxX = left.x + leftToRight;
+				texture[(int) ((poxX + widthAdd) * widthMult)][(int) ((bounds.Center.y + heightAdd + bounds.Extents.y) * heightMult)] = Color.blue;
+				texture[(int) ((poxX + widthAdd) * widthMult)][(int) ((bounds.Center.y + heightAdd - bounds.Extents.y) * heightMult)] = Color.blue;
+			}
+
+			for (int topToBottom = 0; topToBottom < bounds.Extents.y * 2; topToBottom++)
+			{
+				var posY = top.y + topToBottom;
+				texture[(int) ((bounds.Center.x + widthAdd + bounds.Extents.x) * widthMult)][(int) ((posY + heightAdd) * heightMult)] = Color.blue;
+				texture[(int) ((bounds.Center.x + widthAdd - bounds.Extents.x) * widthMult)][(int) ((posY + heightAdd) * heightMult)] = Color.blue;
+			}
+		}
+
+		static void DrawDivider(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
+		{
+			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
+			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
+
+			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
+			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
+
+			var top = new float2(bounds.Center.x, bounds.Center.y - bounds.Extents.y);
+			var left = new float2(bounds.Center.x - bounds.Extents.x, bounds.Center.y);
+
+			for (int leftToRight = 0; leftToRight < bounds.Extents.x * 2; leftToRight++)
+			{
+				var poxX = left.x + leftToRight;
+				texture[(int) ((poxX + widthAdd) * widthMult)]
+					[(int) ((bounds.Center.y + heightAdd) * heightMult)] = Color.blue;
+			}
+
+			for (int topToBottom = 0; topToBottom < bounds.Extents.y * 2; topToBottom++)
+			{
+				var posY = top.y + topToBottom;
+				texture[(int) ((bounds.Center.x + widthAdd) * widthMult)]
+					[(int) ((posY + heightAdd) * heightMult)] = Color.blue;
 			}
 		}
 	}
