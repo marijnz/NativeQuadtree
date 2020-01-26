@@ -1,4 +1,4 @@
-using QuadTree;
+using NativeQuadTree;
 using Unity.Collections;
 using UnityEditor;
 using UnityEngine;

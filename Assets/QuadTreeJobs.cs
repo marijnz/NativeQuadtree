@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 
-namespace QuadTree
+namespace NativeQuadTree
 {
 	/// <summary>
 	/// Examples on jobs for the NativeQuadTree

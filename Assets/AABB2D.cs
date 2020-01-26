@@ -1,7 +1,7 @@
 using System;
 using Unity.Mathematics;
 
-namespace QuadTree
+namespace NativeQuadTree
 {
 	[Serializable]
 	public struct AABB2D {
