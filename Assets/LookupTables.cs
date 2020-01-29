@@ -1,4 +1,4 @@
-namespace NativeQuadTree
+namespace marijnz.NativeQuadTree
 {
 	public static class LookupTables
 	{

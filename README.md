@@ -12,6 +12,6 @@ It's WIP and shouldn't be used yet as there's still safety checks missing.
 With 20k elements on a 2k by 2k map, a max depth of 6 and 16 max elements per leaf. Burst enabled, ran on main thread on my 2015 MacBook Pro:</br>
 
 - Job: Bulk insertion of all elements - Takes ~.7ms
-- Job: 1k queries on a 200m by 200m range - Takes ~1.5ms
+- Job: 1k queries on a 200m by 200m range - Takes ~1.2ms
 
 With Burst disabled the tests are about 10x slower.

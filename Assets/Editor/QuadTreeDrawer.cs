@@ -1,4 +1,4 @@
-using NativeQuadTree;
+using marijnz.NativeQuadTree;
 using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
@@ -11,13 +11,13 @@ public class QuadTreeDrawer : EditorWindow
 		GetWindow(typeof(QuadTreeDrawer)).Show();
 	}
 
-	public static void Draw<T>(NativeQuadTree<T> quadTree) where T : unmanaged
+	public static void Draw(NativeQuadTree quadTree)
 	{
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
 		window.DoDraw(quadTree, default, default);
 	}
 
-	public static void DrawWithResults<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged
+	public static void DrawWithResults(QuadTreeJobs.RangeQueryJob queryJob)
 	{
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
 		window.DoDraw(queryJob);
@@ -26,17 +26,17 @@ public class QuadTreeDrawer : EditorWindow
 	[SerializeField]
 	Color[][] pixels;
 
-	void DoDraw<T>(NativeQuadTree<T> quadTree, NativeList<QuadElement<T>> results, AABB2D bounds) where T : unmanaged
+	void DoDraw(NativeQuadTree quadTree, NativeList<QuadElement> results, AABB2D bounds)
 	{
 		pixels = new Color[256][];
 		for (var i = 0; i < pixels.Length; i++)
 		{
 			pixels[i] = new Color[256];
 		}
-		NativeQuadTree<T>.Draw(quadTree, results, bounds, pixels);
+		NativeQuadTree.Draw(quadTree, results, bounds, pixels);
 	}
 
-	void DoDraw<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged
+	void DoDraw(QuadTreeJobs.RangeQueryJob queryJob)
 	{
 		DoDraw(queryJob.QuadTree, queryJob.Results, queryJob.Bounds);
 	}

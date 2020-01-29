@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
 using NUnit.Framework;
-using NativeQuadTree;
+using marijnz.NativeQuadTree;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -32,21 +32,21 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-        var elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+        var elements = new NativeArray<QuadElement>(values.Length, Allocator.TempJob);
 
         for (int i = 0; i < values.Length; i++)
         {
-            elements[i] = new QuadElement<int>
+            elements[i] = new QuadElement
             {
                 pos = values[i],
-                element = i
+                id = i
             };
         }
 
-        var job = new QuadTreeJobs.AddBulkJob<int>
+        var job = new QuadTreeJobs.AddBulkJob
         {
             Elements = elements,
-            QuadTree = new NativeQuadTree<int>(Bounds)
+            QuadTree = new NativeQuadTree(Bounds)
         };
 
         var s = Stopwatch.StartNew();
@@ -66,25 +66,25 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+        NativeArray<QuadElement> elements = new NativeArray<QuadElement>(values.Length, Allocator.TempJob);
 
         for (int i = 0; i < values.Length; i++)
         {
-            elements[i] = new QuadElement<int>
+            elements[i] = new QuadElement
             {
                 pos = values[i],
-                element = i
+                id = i
             };
         }
 
-        var quadTree = new NativeQuadTree<int>(Bounds);
+        var quadTree = new NativeQuadTree(Bounds);
         quadTree.BulkInsert(elements);
 
-        var queryJob = new QuadTreeJobs.RangeQueryJob<int>
+        var queryJob = new QuadTreeJobs.RangeQueryJob
         {
             QuadTree = quadTree,
             Bounds = new AABB2D(100, 140),
-            Results = new NativeList<QuadElement<int>>(100000, Allocator.TempJob)
+            Results = new NativeList<QuadElement>(100000, Allocator.TempJob)
         };
 
         var s = Stopwatch.StartNew();
@@ -104,19 +104,19 @@ public class QuadTreeTests
         var values = GetValues();
 
         var positions = new NativeArray<float2>(values.Length, Allocator.TempJob);
-        var quadTree = new NativeQuadTree<int>(Bounds);
+        var quadTree = new NativeQuadTree(Bounds);
 
         positions.CopyFrom(values);
 
 
-        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(positions.Length, Allocator.Temp);
+        NativeArray<QuadElement> elements = new NativeArray<QuadElement>(positions.Length, Allocator.Temp);
 
         for (int i = 0; i < positions.Length; i++)
         {
-            elements[i] = new QuadElement<int>
+            elements[i] = new QuadElement
             {
                 pos = positions[i],
-                element = i
+                id = i
             };
         }
 

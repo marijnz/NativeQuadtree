@@ -3,14 +3,14 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 using UnityEngine;
 
-namespace NativeQuadTree
+namespace marijnz.NativeQuadTree
 {
 	/// <summary>
 	/// Editor drawing of the NativeQuadTree
 	/// </summary>
-	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
+	public unsafe partial struct NativeQuadTree
 	{
-		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range,
+		public static void Draw(NativeQuadTree tree, NativeList<QuadElement> results, AABB2D range,
 			Color[][] texture)
 		{
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
@@ -28,7 +28,7 @@ namespace NativeQuadTree
 					for (int k = 0; k < node.count; k++)
 					{
 						var element =
-							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
+							UnsafeUtility.ReadArrayElement<QuadElement>(tree.elements->Ptr, node.firstChildIndex + k);
 
 						texture[(int) ((element.pos.x + widthAdd) * widthMult)]
 							[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.red;
@@ -45,7 +45,7 @@ namespace NativeQuadTree
 			DrawBounds(texture, range, tree);
 		}
 
-		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
+		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree tree)
 		{
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;

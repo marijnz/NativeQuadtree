@@ -3,13 +3,12 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
 
-namespace NativeQuadTree
+namespace marijnz.NativeQuadTree
 {
-	// Represents an element node in the quadtree.
-	public struct QuadElement<T>
+	public struct QuadElement
 	{
 		public float2 pos;
-		public T element;
+		public int id;
 	}
 
 	/// <summary>
@@ -20,7 +19,7 @@ namespace NativeQuadTree
 	/// - Better test coverage
 	/// - Automated depth / bounds / max leaf elements calculation
 	/// </summary>
-	public unsafe partial struct NativeQuadTree<T> : IDisposable where T : unmanaged
+	public unsafe partial struct NativeQuadTree : IDisposable
 	{
 		struct QuadNode
 		{
@@ -32,12 +31,6 @@ namespace NativeQuadTree
 
 			// Capacity of elements in the leaf. TODO: not really needed anymore
 			public short elementsCapacity;
-		}
-
-		struct RangeQueryRequest
-		{
-			public NativeList<QuadElement<T>> Results;
-			public AABB2D Bounds;
 		}
 
 		[NativeDisableUnsafePtrRestriction]
@@ -64,13 +57,11 @@ namespace NativeQuadTree
 		public NativeQuadTree(AABB2D bounds, int maxDepth = 6, short maxLeafElements = 16,
 			int initialElementsCapacity = 300000) : this()
 		{
-			CollectionHelper.CheckIsUnmanaged<T>();
-
 			this.bounds = bounds;
 			this.maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
 
-			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(), UnsafeUtility.AlignOf<QuadElement<T>>(), initialElementsCapacity, Allocator.Persistent);
+			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement>(), UnsafeUtility.AlignOf<QuadElement>(), initialElementsCapacity, Allocator.Persistent);
 			elementsCount = 0;
 
 			if(maxDepth > 8)
@@ -93,7 +84,7 @@ namespace NativeQuadTree
 				NativeArrayOptions.ClearMemory);
 		}
 
-		public void BulkInsert(NativeArray<QuadElement<T>> incomingElements)
+		public void BulkInsert(NativeArray<QuadElement> incomingElements)
 		{
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
 
@@ -176,18 +167,41 @@ namespace NativeQuadTree
 			}
 		}
 
-		public void RangeQuery(AABB2D bounds, NativeList<QuadElement<T>> results)
+		struct RangeQueryRequest
 		{
+			public NativeList<QuadElement> ResultsOutput;
+			public QuadElement* ResultsStack;
+			public int Length;
+			public AABB2D Bounds;
+		}
+
+		// 512 elements seems to be a reasonable trade off in overhead / performance gain but it can be changed.
+		const int QueryStackSize = 512;
+
+		public void RangeQuery(AABB2D bounds, NativeList<QuadElement> results)
+		{
+			var stack = stackalloc QuadElement[QueryStackSize];
 			var query = new RangeQueryRequest
 			{
 				Bounds = bounds,
-				Results = results
+				ResultsStack = stack,
+				ResultsOutput = results
 			};
+
 			RecursiveRangeQuery(ref query, this.bounds, false, 0, 0);
+
+			results.AddRange(query.ResultsStack, query.Length);
 		}
 
 		void RecursiveRangeQuery(ref RangeQueryRequest query, AABB2D parentBounds, bool parentContained, int atNode, int depth)
 		{
+			if(query.Length + 4 * maxLeafElements > QueryStackSize)
+			{
+				// We're about to hit the stack limit, copy over to results and reset length
+				query.ResultsOutput.AddRange(query.ResultsStack, query.Length);
+				query.Length = 0;
+			}
+
 			var totalOffset = LookupTables.DepthSizeLookup[++depth];
 
 			for (int l = 0; l < 4; l++)
@@ -220,17 +234,20 @@ namespace NativeQuadTree
 
 					if(contained)
 					{
-						var index = (void*) ((IntPtr) elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
-						query.Results.AddRange(index, node.count);
+						var index = (void*) ((IntPtr) elements->Ptr + node.firstChildIndex * sizeof(QuadElement));
+						//query.Results.AddRange(index, node.count);
+						UnsafeUtility.MemCpy((void*) ((IntPtr) query.ResultsStack + query.Length * sizeof(QuadElement)),
+							index, node.count * sizeof(QuadElement));
+						query.Length += node.count;
 					}
 					else
 					{
 						for (int k = 0; k < node.count; k++)
 						{
-							var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(elements->Ptr, node.firstChildIndex + k);
+							var element = UnsafeUtility.ReadArrayElement<QuadElement>(elements->Ptr, node.firstChildIndex + k);
 							if(query.Bounds.Contains(element.pos))
 							{
-								query.Results.Add(element);
+								query.ResultsStack[query.Length++] = (element);
 							}
 						}
 					}

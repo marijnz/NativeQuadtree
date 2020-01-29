@@ -2,7 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 
-namespace NativeQuadTree
+namespace marijnz.NativeQuadTree
 {
 	/// <summary>
 	/// Examples on jobs for the NativeQuadTree
@@ -13,12 +13,12 @@ namespace NativeQuadTree
 		/// Bulk insert many items into the tree
 		/// </summary>
 		[BurstCompile]
-		public struct AddBulkJob<T> : IJob where T : unmanaged
+		public struct AddBulkJob : IJob
 		{
 			[ReadOnly]
-			public NativeArray<QuadElement<T>> Elements;
+			public NativeArray<QuadElement> Elements;
 
-			public NativeQuadTree<T> QuadTree;
+			public NativeQuadTree QuadTree;
 
 			public void Execute()
 			{
@@ -30,16 +30,16 @@ namespace NativeQuadTree
 		/// Example on how to do a range query, it's better to write your own and do many queries in a batch
 		/// </summary>
 		[BurstCompile]
-		public struct RangeQueryJob<T> : IJob where T : unmanaged
+		public struct RangeQueryJob : IJob
 		{
 			[ReadOnly]
 			public AABB2D Bounds;
 
 			[ReadOnly]
-			public NativeQuadTree<T> QuadTree;
+			public NativeQuadTree QuadTree;
 
 			[WriteOnly]
-			public NativeList<QuadElement<T>> Results;
+			public NativeList<QuadElement> Results;
 
 			public void Execute()
 			{
