@@ -78,7 +78,7 @@ public class QuadTreeTests
         }
 
         var quadTree = new NativeQuadTree<int>(Bounds);
-        quadTree.BulkInsert(elements);
+        quadTree.ClearAndBulkInsert(elements);
 
         var queryJob = new QuadTreeJobs.RangeQueryJob<int>
         {
@@ -122,7 +122,7 @@ public class QuadTreeTests
 
         var s = Stopwatch.StartNew();
 
-        quadTree.BulkInsert(elements);
+        quadTree.ClearAndBulkInsert(elements);
 
         s.Stop();
         Debug.Log(s.Elapsed.TotalMilliseconds);

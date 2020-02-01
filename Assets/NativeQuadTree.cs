@@ -6,10 +6,22 @@ using Unity.Mathematics;
 namespace NativeQuadTree
 {
 	// Represents an element node in the quadtree.
-	public struct QuadElement<T>
+	public struct QuadElement<T> where T : unmanaged
 	{
 		public float2 pos;
 		public T element;
+	}
+
+	struct QuadNode
+	{
+		// Points to this node's first child index in elements
+		public int firstChildIndex;
+
+		// Number of elements in the leaf
+		public short count;
+
+		// Capacity of elements in the leaf. TODO: not really needed anymore
+		public short elementsCapacity;
 	}
 
 	/// <summary>
@@ -22,24 +34,6 @@ namespace NativeQuadTree
 	/// </summary>
 	public unsafe partial struct NativeQuadTree<T> : IDisposable where T : unmanaged
 	{
-		struct QuadNode
-		{
-			// Points to this node's first child index in elements
-			public int firstChildIndex;
-
-			// Number of elements in the leaf
-			public short count;
-
-			// Capacity of elements in the leaf. TODO: not really needed anymore
-			public short elementsCapacity;
-		}
-
-		struct RangeQueryRequest
-		{
-			public NativeList<QuadElement<T>> Results;
-			public AABB2D Bounds;
-		}
-
 		// Safety
 		AtomicSafetyHandle safetyHandle;
 		[NativeSetClassTypeToNullOnSchedule]
@@ -92,7 +86,7 @@ namespace NativeQuadTree
 			var totalSize = LookupTables.DepthSizeLookup[maxDepth+1];
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
-				UnsafeUtility.AlignOf<QuadNode>(),
+				UnsafeUtility.AlignOf<int>(),
 				totalSize,
 				allocator,
 				NativeArrayOptions.ClearMemory);
@@ -109,8 +103,12 @@ namespace NativeQuadTree
 				allocator);
 		}
 
-		public void BulkInsert(NativeArray<QuadElement<T>> incomingElements)
+		public void ClearAndBulkInsert(NativeArray<QuadElement<T>> incomingElements)
 		{
+			// Always have to clear before bulk insert as otherwise the lookup and node allocations need to account
+			// for existing data.
+			Clear();
+
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
 #endif
@@ -118,7 +116,7 @@ namespace NativeQuadTree
 			// Resize if needed
 			if(elements->Capacity < elementsCount + incomingElements.Length)
 			{
-				elements->Capacity = math.max(incomingElements.Length, elements->Capacity*2);
+				elements->Resize<QuadElement<T>>(math.max(incomingElements.Length, elements->Capacity*2));
 			}
 
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
@@ -153,6 +151,7 @@ namespace NativeQuadTree
 			// Allocate the tree leave nodes
 			RecursiveAlloc(0, 0);
 
+
 			// Add elements to leave nodes
 			for (var i = 0; i < mortonCodes.Length; i++)
 			{
@@ -178,17 +177,6 @@ namespace NativeQuadTree
 			mortonCodes.Dispose();
 		}
 
-		public void Clear()
-		{
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
-#endif
-			lookup->Clear();
-			nodes->Clear();
-			elements->Clear();
-			elementsCount = 0;
-		}
-
 		void RecursiveAlloc(int atNode, int depth)
 		{
 			var totalOffset = LookupTables.DepthSizeLookup[++depth];
@@ -209,85 +197,28 @@ namespace NativeQuadTree
 					var node = new QuadNode {firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) elementCount};
 					UnsafeUtility.WriteArrayElement(nodes->Ptr, at, node);
 					elementsCount += elementCount;
+
 				}
 			}
 		}
-
 
 		public void RangeQuery(AABB2D bounds, NativeList<QuadElement<T>> results)
 		{
-			var query = new RangeQueryRequest
-			{
-				Bounds = bounds,
-				Results = results
-			};
-			RecursiveRangeQuery(ref query, this.bounds, false, 0, 0);
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
+#endif
+			new QuadTreeRangeQuery<T>().Query(this, bounds, results);
 		}
 
-		void RecursiveRangeQuery(ref RangeQueryRequest query, AABB2D parentBounds, bool parentContained, int atNode, int depth)
+		public void Clear()
 		{
-			var totalOffset = LookupTables.DepthSizeLookup[++depth];
-
-			for (int l = 0; l < 4; l++)
-			{
-				var childBounds = GetChildBounds(parentBounds, l);
-
-				var contained = parentContained;
-				if(!contained)
-				{
-					if(query.Bounds.Contains(childBounds))
-					{
-						contained = true;
-					}
-					else if(!query.Bounds.Intersects(childBounds))
-					{
-						continue;
-					}
-				}
-
-				var at = totalOffset + atNode + l;
-				var elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
-
-				if(elementCount > maxLeafElements && depth < maxDepth)
-				{
-					RecursiveRangeQuery( ref query, childBounds, contained, (atNode + l) * 4, depth);
-				}
-				else if(elementCount != 0)
-				{
-					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, at);
-
-					if(contained)
-					{
-						var index = (void*) ((IntPtr) elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
-						query.Results.AddRange(index, node.count);
-					}
-					else
-					{
-						for (int k = 0; k < node.count; k++)
-						{
-							var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(elements->Ptr, node.firstChildIndex + k);
-							if(query.Bounds.Contains(element.pos))
-							{
-								query.Results.Add(element);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
-		{
-			var half = parentBounds.Extents.x * .5f;
-
-			switch (childZIndex)
-			{
-				case 0: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y + half), half);
-				case 1: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y + half), half);
-				case 2: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y - half), half);
-				case 3: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y - half), half);
-				default: throw new Exception();
-			}
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
+#endif
+			lookup->Clear();
+			nodes->Clear();
+			elements->Clear();
+			elementsCount = 0;
 		}
 
 		public void Dispose()

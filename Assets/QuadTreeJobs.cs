@@ -22,7 +22,7 @@ namespace NativeQuadTree
 
 			public void Execute()
 			{
-				QuadTree.BulkInsert(Elements);
+				QuadTree.ClearAndBulkInsert(Elements);
 			}
 		}
 
