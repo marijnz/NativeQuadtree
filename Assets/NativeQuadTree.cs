@@ -40,11 +40,20 @@ namespace NativeQuadTree
 			public AABB2D Bounds;
 		}
 
+		// Safety
+		AtomicSafetyHandle safetyHandle;
+		[NativeSetClassTypeToNullOnSchedule]
+		DisposeSentinel disposeSentinel;
+
+		// Data
 		[NativeDisableUnsafePtrRestriction]
 		UnsafeList* elements;
 
 		[NativeDisableUnsafePtrRestriction]
 		UnsafeList* lookup;
+
+		[NativeDisableUnsafePtrRestriction]
+		UnsafeList* nodes;
 
 		int elementsCount;
 
@@ -53,24 +62,19 @@ namespace NativeQuadTree
 
 		AABB2D bounds; // NOTE: Currently assuming uniform
 
-		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* nodesQuick;
-
 		/// <summary>
 		/// Create a new QuadTree.
 		/// - Ensure the bounds are not way bigger than needed, otherwise the buckets are very off. Probably best to calculate bounds
 		/// - The higher the depth, the larger the overhead, it especially goes up at a depth of 7/8
 		/// </summary>
-		public NativeQuadTree(AABB2D bounds, int maxDepth = 6, short maxLeafElements = 16,
-			int initialElementsCapacity = 300000) : this()
+		public NativeQuadTree(AABB2D bounds, Allocator allocator = Allocator.Temp, int maxDepth = 6, short maxLeafElements = 16,
+			int initialElementsCapacity = 256
+		) : this()
 		{
-			CollectionHelper.CheckIsUnmanaged<T>();
 
 			this.bounds = bounds;
 			this.maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
-
-			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(), UnsafeUtility.AlignOf<QuadElement<T>>(), initialElementsCapacity, Allocator.Persistent);
 			elementsCount = 0;
 
 			if(maxDepth > 8)
@@ -78,23 +82,45 @@ namespace NativeQuadTree
 				throw new InvalidOperationException();
 			}
 
-			const int totalSize = 1+2*2+4*4+8*8+16+16+32*32+64*64+128*128+256*256+512*512;
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+
+			CollectionHelper.CheckIsUnmanaged<T>();
+			DisposeSentinel.Create(out safetyHandle, out disposeSentinel, 1, allocator);
+#endif
+
+			var totalSize = LookupTables.DepthSizeLookup[maxDepth+1];
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
 				totalSize,
-				Allocator.Persistent,
+				allocator,
 				NativeArrayOptions.ClearMemory);
 
-			nodesQuick = UnsafeList.Create(UnsafeUtility.SizeOf<QuadNode>(),
+			nodes = UnsafeList.Create(UnsafeUtility.SizeOf<QuadNode>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
 				totalSize,
-				Allocator.Persistent,
+				allocator,
 				NativeArrayOptions.ClearMemory);
+
+			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(),
+				UnsafeUtility.AlignOf<QuadElement<T>>(),
+				initialElementsCapacity,
+				allocator);
 		}
 
 		public void BulkInsert(NativeArray<QuadElement<T>> incomingElements)
 		{
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
+#endif
+
+			// Resize if needed
+			if(elements->Capacity < elementsCount + incomingElements.Length)
+			{
+				elements->Capacity = math.max(incomingElements.Length, elements->Capacity*2);
+			}
+
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
 
 			// Remapping values to range of depth
@@ -138,18 +164,29 @@ namespace NativeQuadTree
 
 					// Offset by depth and add morton index
 					var index = LookupTables.DepthSizeLookup[depth] + level;
-					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodesQuick->Ptr, index);
+					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, index);
 					if(node.elementsCapacity > 0)
 					{
 						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i]);
 						node.count++;
-						UnsafeUtility.WriteArrayElement(nodesQuick->Ptr, index, node);
+						UnsafeUtility.WriteArrayElement(nodes->Ptr, index, node);
 						break;
 					}
 				}
 			}
 
 			mortonCodes.Dispose();
+		}
+
+		public void Clear()
+		{
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
+#endif
+			lookup->Clear();
+			nodes->Clear();
+			elements->Clear();
+			elementsCount = 0;
 		}
 
 		void RecursiveAlloc(int atNode, int depth)
@@ -170,11 +207,12 @@ namespace NativeQuadTree
 				{
 					// Alloc node
 					var node = new QuadNode {firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) elementCount};
-					UnsafeUtility.WriteArrayElement(nodesQuick->Ptr, at, node);
+					UnsafeUtility.WriteArrayElement(nodes->Ptr, at, node);
 					elementsCount += elementCount;
 				}
 			}
 		}
+
 
 		public void RangeQuery(AABB2D bounds, NativeList<QuadElement<T>> results)
 		{
@@ -216,7 +254,7 @@ namespace NativeQuadTree
 				}
 				else if(elementCount != 0)
 				{
-					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodesQuick->Ptr, at);
+					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, at);
 
 					if(contained)
 					{
@@ -238,16 +276,6 @@ namespace NativeQuadTree
 			}
 		}
 
-		public void Dispose()
-		{
-			UnsafeList.Destroy(elements);
-			elements = null;
-			UnsafeList.Destroy(lookup);
-			lookup = null;
-			UnsafeList.Destroy(nodesQuick);
-			nodesQuick = null;
-		}
-
 		static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
 		{
 			var half = parentBounds.Extents.x * .5f;
@@ -260,6 +288,19 @@ namespace NativeQuadTree
 				case 3: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y - half), half);
 				default: throw new Exception();
 			}
+		}
+
+		public void Dispose()
+		{
+			UnsafeList.Destroy(elements);
+			elements = null;
+			UnsafeList.Destroy(lookup);
+			lookup = null;
+			UnsafeList.Destroy(nodes);
+			nodes = null;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			DisposeSentinel.Dispose(ref safetyHandle, ref disposeSentinel);
+#endif
 		}
 	}
 }

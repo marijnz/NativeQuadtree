@@ -19,9 +19,9 @@ namespace NativeQuadTree
 			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
 			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
 
-			for (int i = 0; i < tree.nodesQuick->Capacity; i++)
+			for (int i = 0; i < tree.nodes->Capacity; i++)
 			{
-				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodesQuick->Ptr, i);
+				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, i);
 
 				if(node.count > 0)
 				{
