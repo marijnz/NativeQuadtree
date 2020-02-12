@@ -126,6 +126,7 @@ namespace NativeQuadTree
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
 				var incPos = incomingElements[i].pos;
+				// TODO: offset by center
 				incPos.y = -incPos.y; // world -> array
 				var pos = (int2) ((incPos + bounds.Extents) * .5f * depthRemapMult);
 				mortonCodes[i] = LookupTables.MortonLookup[pos.x] | (LookupTables.MortonLookup[pos.y] << 1);
@@ -138,6 +139,7 @@ namespace NativeQuadTree
 
 				for (int depth = maxDepth; depth >= 0; depth--)
 				{
+					// Shift to get morton code of this depth. Shifting bits away to get to "less precision".
 					int level = mortonCode >> ((maxDepth - depth) *2);
 
 					// Offset by depth and add morton index
