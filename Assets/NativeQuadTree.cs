@@ -124,10 +124,10 @@ namespace NativeQuadTree
 				}
 			}
 
-			// Allocate the tree leave nodes
+			// Allocate the tree leaf nodes
 			RecursiveAlloc(0, 0);
 
-			// Add elements to leave nodes
+			// Add elements to leaf nodes
 			for (var i = 0; i < mortonCodes.Length; i++)
 			{
 				var mortonCode = mortonCodes[i];
