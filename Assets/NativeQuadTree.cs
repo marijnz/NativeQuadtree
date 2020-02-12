@@ -19,16 +19,13 @@ namespace NativeQuadTree
 
 		// Number of elements in the leaf
 		public short count;
-
-		// Capacity of elements in the leaf. TODO: not really needed anymore
-		public short elementsCapacity;
+		public bool isLeaf;
 	}
 
 	/// <summary>
-	/// A QuadTree aimed to be used by Burst, using morton code for very fast bulk insertion.
+	/// A QuadTree aimed to be used with Burst, supports fast bulk insertion and querying.
 	///
 	/// TODO:
-	/// - Safety checks with AtomicSafetyHandle / DisposeSentinel
 	/// - Better test coverage
 	/// - Automated depth / bounds / max leaf elements calculation
 	/// </summary>
@@ -65,7 +62,6 @@ namespace NativeQuadTree
 			int initialElementsCapacity = 256
 		) : this()
 		{
-
 			this.bounds = bounds;
 			this.maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
@@ -73,16 +69,16 @@ namespace NativeQuadTree
 
 			if(maxDepth > 8)
 			{
+				// Currently no support for higher depths, the morton code lookup tables would have to support it
 				throw new InvalidOperationException();
 			}
 
-
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-
 			CollectionHelper.CheckIsUnmanaged<T>();
 			DisposeSentinel.Create(out safetyHandle, out disposeSentinel, 1, allocator);
 #endif
 
+			// Allocate memory for every depth, the nodes on all depths are stored in a single continuous array
 			var totalSize = LookupTables.DepthSizeLookup[maxDepth+1];
 
 			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
@@ -121,40 +117,56 @@ namespace NativeQuadTree
 
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
 
-			// Remapping values to range of depth
-			var depthRemapMult = LookupTables.DepthLookup[maxDepth] / bounds.Extents.x;
+			var depthExtentsScaling = LookupTables.DepthLookup[maxDepth] / bounds.Extents;
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
 				var incPos = incomingElements[i].pos;
-				// TODO: offset by center
-				incPos.y = -incPos.y; // world -> array
-				var pos = (int2) ((incPos + bounds.Extents) * .5f * depthRemapMult);
-				mortonCodes[i] = LookupTables.MortonLookup[pos.x] | (LookupTables.MortonLookup[pos.y] << 1);
+				incPos -= bounds.Center; // Offset by center
+				incPos.y = -incPos.y; // World -> array
+				var pos = (incPos + bounds.Extents) * .5f; // Make positive
+				// Now scale into available space that belongs to the depth
+				pos *= depthExtentsScaling;
+				// And interleave the bits for the morton code
+				mortonCodes[i] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
 			}
 
-			// Index total child element count per node (so including those of child nodes)
+			// Index total child element count per node (total, so parent's counts include those of child nodes)
+			/*
+			 * Let's say there's 8 depth so there's a a morton code spanning 18 bits: 01001000100111010101
+			 *
+			 *  On depth 1				On depth 2				On depth 3
+			 *
+			 * 	bit shift 16			bit shift 14			etc..
+			 * 	0100100010011101[01]	010000100111[0101]
+			 *
+			 * 	00 01					0000 0001 0100 0101
+			 *	10 11			 		0010 0011 0110 0111
+			 *							1000 1001 1100 1101
+			 *							1010 1011 1110 1111
+			 *
+			 *  the decimal representation within [] will be the index into the lookup array
+			 *  ( + the offset of all previous depth's data)
+			 */
 			for (var i = 0; i < mortonCodes.Length; i++)
 			{
-				var mortonCode = mortonCodes[i];
-
-				for (int depth = maxDepth; depth >= 0; depth--)
+				for (int depth = 0; depth <= maxDepth; depth++)
 				{
-					// Shift to get morton code of this depth. Shifting bits away to get to "less precision".
-					int level = mortonCode >> ((maxDepth - depth) *2);
+					// Shift bit away to get morton code of this depth ("less precision")
+					int shiftedMortonCode = mortonCodes[i] >> ((maxDepth - depth) *2);
 
-					// Offset by depth and add morton index
-					var index = LookupTables.DepthSizeLookup[depth] + level;
+					// Offset by depth and add (shifted) morton code
+					var index = LookupTables.DepthSizeLookup[depth] + shiftedMortonCode;
 
-					// +1 to that node lookup
+					// Increment the node on this depth that this element is contained in
 					(*(int*) ((IntPtr) lookup->Ptr + index * sizeof (int)))++;
 				}
 			}
 
-			// Allocate the tree leaf nodes
-			RecursiveAlloc(0, 0);
+			// Prepare the tree leaf nodes
+			RecursivePrepareLeaves(0, 0);
 
 			// Add elements to leaf nodes
-			for (var i = 0; i < mortonCodes.Length; i++)
+			for (var i = 0; i < incomingElements.Length; i++)
 			{
 				var mortonCode = mortonCodes[i];
 
@@ -165,20 +177,22 @@ namespace NativeQuadTree
 					// Offset by depth and add morton index
 					var index = LookupTables.DepthSizeLookup[depth] + level;
 					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, index);
-					if(node.elementsCapacity > 0)
+					if(node.isLeaf)
 					{
+						// We found a leaf, add this element to it and move to the next element
 						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i]);
 						node.count++;
 						UnsafeUtility.WriteArrayElement(nodes->Ptr, index, node);
 						break;
 					}
+					// No leaf found, we keep going deeper until we find one
 				}
 			}
 
 			mortonCodes.Dispose();
 		}
 
-		void RecursiveAlloc(int atNode, int depth)
+		void RecursivePrepareLeaves(int atNode, int depth)
 		{
 			var totalOffset = LookupTables.DepthSizeLookup[++depth];
 
@@ -190,15 +204,15 @@ namespace NativeQuadTree
 
 				if(elementCount > maxLeafElements && depth < maxDepth)
 				{
-					RecursiveAlloc((atNode + l) * 4, depth);
+					// There's more elements than allowed on this node so keep going deeper
+					RecursivePrepareLeaves((atNode + l) * 4, depth);
 				}
 				else if(elementCount != 0)
 				{
-					// Alloc node
-					var node = new QuadNode {firstChildIndex = elementsCount, count = 0, elementsCapacity = (short) elementCount};
+					// We either hit max depth or there's less than the max elements on this node, make it a leaf
+					var node = new QuadNode {firstChildIndex = elementsCount, count = 0, isLeaf = true };
 					UnsafeUtility.WriteArrayElement(nodes->Ptr, at, node);
 					elementsCount += elementCount;
-
 				}
 			}
 		}
@@ -208,7 +222,7 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
 #endif
-			new QuadTreeRangeQuery<T>().Query(this, bounds, results);
+			new QuadTreeRangeQuery().Query(this, bounds, results);
 		}
 
 		public void Clear()

@@ -7,7 +7,7 @@ namespace NativeQuadTree
 {
 	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
 	{
-		struct QuadTreeRangeQuery<T> where T : unmanaged
+		struct QuadTreeRangeQuery
 		{
 			NativeQuadTree<T> tree;
 			NativeList<QuadElement<T>> results;

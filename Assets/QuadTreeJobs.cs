@@ -43,6 +43,11 @@ namespace NativeQuadTree
 
 			public void Execute()
 			{
+				for (int i = 0; i < 1000; i++)
+				{
+					QuadTree.RangeQuery(Bounds, Results);
+					Results.Clear();
+				}
 				QuadTree.RangeQuery(Bounds, Results);
 			}
 		}
