@@ -18,13 +18,11 @@ namespace NativeQuadTree
 				this.tree = tree;
 				this.bounds = bounds;
 				this.results = results;
-				RecursiveRangeQuery(tree.bounds, false, 0, 0);
+				RecursiveRangeQuery(tree.bounds, false, 1, 1);
 			}
 
-			public void RecursiveRangeQuery(AABB2D parentBounds, bool parentContained, int atNode, int depth)
+			public void RecursiveRangeQuery(AABB2D parentBounds, bool parentContained, int prevOffset, int depth)
 			{
-				var totalOffset = LookupTables.DepthSizeLookup[++depth];
-
 				for (int l = 0; l < 4; l++)
 				{
 					var childBounds = GetChildBounds(parentBounds, l);
@@ -42,12 +40,13 @@ namespace NativeQuadTree
 						}
 					}
 
-					var at = totalOffset + atNode + l;
+					var at = prevOffset + l * LookupTables.DepthSizeLookup[tree.maxDepth - depth+1];
+
 					var elementCount = UnsafeUtility.ReadArrayElement<int>(tree.lookup->Ptr, at);
 
 					if(elementCount > tree.maxLeafElements && depth < tree.maxDepth)
 					{
-						RecursiveRangeQuery(childBounds, contained, (atNode + l) * 4, depth);
+						RecursiveRangeQuery(childBounds, contained, at+1, depth+1);
 					}
 					else if(elementCount != 0)
 					{

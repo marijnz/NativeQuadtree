@@ -58,7 +58,7 @@ namespace NativeQuadTree
 		/// - Ensure the bounds are not way bigger than needed, otherwise the buckets are very off. Probably best to calculate bounds
 		/// - The higher the depth, the larger the overhead, it especially goes up at a depth of 7/8
 		/// </summary>
-		public NativeQuadTree(AABB2D bounds, Allocator allocator = Allocator.Temp, int maxDepth = 6, short maxLeafElements = 16,
+		public NativeQuadTree(AABB2D bounds, Allocator allocator = Allocator.Temp, int maxDepth = 4, short maxLeafElements = 16,
 			int initialElementsCapacity = 256
 		) : this()
 		{
@@ -156,32 +156,35 @@ namespace NativeQuadTree
 					// Increment the node on this depth that this element is contained in
 					(*(int*) ((IntPtr) lookup->Ptr + atIndex * sizeof (int)))++;
 
-					var atDepth = maxDepth - depth;
+					if(depth != maxDepth)
+					{
+						var atDepth = maxDepth - depth;
 
-					//todo doesn't work because of int..
-					//var firstShift = mortonCodes[i] << depth * 2; // First, shift to left to get rid of upper morton code
+						// Then shift to right to get rid of lower morton code
+						int shiftedMortonCode = mortonCodes[i] >> ((atDepth-1) * 2);
+						int mask = 0b11;
+						shiftedMortonCode = shiftedMortonCode & mask;
 
-					// Then shift to right to get rid of lower morton code
-					int shiftedMortonCode = mortonCodes[i] >> (atDepth * 2);
-					int mask = 0b11;
-					shiftedMortonCode = shiftedMortonCode & mask;
+						// so the index becomes that... (0,1,2,3)
+						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
+						atIndex++; // offset for self
 
-					// so the index becomes that... (0,1,2,3)
-					atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
-					atIndex++; // offset for self
+					}
+
 				}
 			}
 
 
 			// Prepare the tree leaf nodes
-			RecursivePrepareLeaves(0, 0);
+			RecursivePrepareLeaves(1, 1);
 
 			// Add elements to leaf nodes
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
 				int atIndex = 0;
 
-				for (int depth = maxDepth; depth >= 0; depth--)
+				bool added = false;
+				for (int depth = 0; depth <= maxDepth; depth++)
 				{
 					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
 					if(node.isLeaf)
@@ -190,23 +193,29 @@ namespace NativeQuadTree
 						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i]);
 						node.count++;
 						UnsafeUtility.WriteArrayElement(nodes->Ptr, atIndex, node);
+						added = true;
 						break;
 					}
 					// No leaf found, we keep going deeper until we find one
 
-					var atDepth = maxDepth - depth;
+					if(depth != maxDepth)
+					{
+						var atDepth = maxDepth - depth;
 
-					//todo doesn't work because of int..
-					//var firstShift = mortonCodes[i] << depth * 2; // First, shift to left to get rid of upper morton code
+						// Then shift to right to get rid of lower morton code
+						int shiftedMortonCode = mortonCodes[i] >> ((atDepth-1) * 2);
+						int mask = 0b11;
+						shiftedMortonCode = shiftedMortonCode & mask;
 
-					// Then shift to right to get rid of lower morton code
-					int shiftedMortonCode = mortonCodes[i] >> (atDepth * 2);
-					int mask = 0b11;
-					shiftedMortonCode = shiftedMortonCode & mask;
+						// so the index becomes that... (0,1,2,3)
+						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
+						atIndex++; // offset for self
+					}
 
-					// so the index becomes that... (0,1,2,3)
-					atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
-					atIndex++; // offset for self
+				}
+				if(!added)
+				{
+					// wjat?
 				}
 			}
 
@@ -217,7 +226,7 @@ namespace NativeQuadTree
 		{
 			for (int l = 0; l < 4; l++)
 			{
-				var at = prevOffset + l * LookupTables.DepthSizeLookup[maxDepth - depth];
+				var at = prevOffset + l * LookupTables.DepthSizeLookup[maxDepth - depth+1];
 
 				var elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
 
