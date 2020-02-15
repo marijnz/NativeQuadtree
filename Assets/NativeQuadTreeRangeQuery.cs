@@ -10,19 +10,34 @@ namespace NativeQuadTree
 		struct QuadTreeRangeQuery
 		{
 			NativeQuadTree<T> tree;
-			NativeList<QuadElement<T>> results;
+
+			UnsafeList* fastResults;
+			int count;
+
 			AABB2D bounds;
 
 			public void Query(NativeQuadTree<T> tree, AABB2D bounds, NativeList<QuadElement<T>> results)
 			{
 				this.tree = tree;
 				this.bounds = bounds;
-				this.results = results;
+				count = 0;
+
+				// Get pointer to inner list data for faster writing
+				fastResults = (UnsafeList*) NativeListUnsafeUtility.GetInternalListDataPtrUnchecked(ref results);
+
 				RecursiveRangeQuery(tree.bounds, false, 1, 1);
+
+				fastResults->Length = count;
 			}
 
 			public void RecursiveRangeQuery(AABB2D parentBounds, bool parentContained, int prevOffset, int depth)
 			{
+				if(count + 4 * tree.maxLeafElements > fastResults->Capacity)
+				{
+					fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, 4 * tree.maxLeafElements));
+				}
+
+				var depthSize = LookupTables.DepthSizeLookup[tree.maxDepth - depth+1];
 				for (int l = 0; l < 4; l++)
 				{
 					var childBounds = GetChildBounds(parentBounds, l);
@@ -40,7 +55,8 @@ namespace NativeQuadTree
 						}
 					}
 
-					var at = prevOffset + l * LookupTables.DepthSizeLookup[tree.maxDepth - depth+1];
+
+					var at = prevOffset + l * depthSize;
 
 					var elementCount = UnsafeUtility.ReadArrayElement<int>(tree.lookup->Ptr, at);
 
@@ -55,7 +71,10 @@ namespace NativeQuadTree
 						if(contained)
 						{
 							var index = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
-							results.AddRange(index, node.count);
+
+							UnsafeUtility.MemCpy((void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>()),
+								index, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
+							count += node.count;
 						}
 						else
 						{
@@ -64,7 +83,7 @@ namespace NativeQuadTree
 								var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
 								if(bounds.Contains(element.pos))
 								{
-									results.Add(element);
+									UnsafeUtility.WriteArrayElement(fastResults->Ptr, count++, element);
 								}
 							}
 						}

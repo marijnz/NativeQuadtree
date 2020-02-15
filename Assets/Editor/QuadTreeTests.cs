@@ -84,7 +84,7 @@ public class QuadTreeTests
         {
             QuadTree = quadTree,
             Bounds = new AABB2D(100, 140),
-            Results = new NativeList<QuadElement<int>>(100000, Allocator.TempJob)
+            Results = new NativeList<QuadElement<int>>(1000, Allocator.TempJob)
         };
 
         var s = Stopwatch.StartNew();

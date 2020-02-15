@@ -58,7 +58,7 @@ namespace NativeQuadTree
 		/// - Ensure the bounds are not way bigger than needed, otherwise the buckets are very off. Probably best to calculate bounds
 		/// - The higher the depth, the larger the overhead, it especially goes up at a depth of 7/8
 		/// </summary>
-		public NativeQuadTree(AABB2D bounds, Allocator allocator = Allocator.Temp, int maxDepth = 4, short maxLeafElements = 16,
+		public NativeQuadTree(AABB2D bounds, Allocator allocator = Allocator.Temp, int maxDepth = 6, short maxLeafElements = 16,
 			int initialElementsCapacity = 256
 		) : this()
 		{
@@ -159,18 +159,13 @@ namespace NativeQuadTree
 					if(depth != maxDepth)
 					{
 						var atDepth = maxDepth - depth;
-
-						// Then shift to right to get rid of lower morton code
-						int shiftedMortonCode = mortonCodes[i] >> ((atDepth-1) * 2);
-						int mask = 0b11;
-						shiftedMortonCode = shiftedMortonCode & mask;
+						// Shift to the right and only get the first two bits
+						int shiftedMortonCode = (mortonCodes[i] >> ((atDepth-1) * 2)) & 0b11;
 
 						// so the index becomes that... (0,1,2,3)
 						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
 						atIndex++; // offset for self
-
 					}
-
 				}
 			}
 
@@ -183,7 +178,6 @@ namespace NativeQuadTree
 			{
 				int atIndex = 0;
 
-				bool added = false;
 				for (int depth = 0; depth <= maxDepth; depth++)
 				{
 					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
@@ -193,7 +187,6 @@ namespace NativeQuadTree
 						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i]);
 						node.count++;
 						UnsafeUtility.WriteArrayElement(nodes->Ptr, atIndex, node);
-						added = true;
 						break;
 					}
 					// No leaf found, we keep going deeper until we find one
@@ -201,21 +194,14 @@ namespace NativeQuadTree
 					if(depth != maxDepth)
 					{
 						var atDepth = maxDepth - depth;
-
-						// Then shift to right to get rid of lower morton code
-						int shiftedMortonCode = mortonCodes[i] >> ((atDepth-1) * 2);
-						int mask = 0b11;
-						shiftedMortonCode = shiftedMortonCode & mask;
+						// Shift to the right and only get the first two bits
+						int shiftedMortonCode = (mortonCodes[i] >> ((atDepth-1) * 2)) & 0b11;
 
 						// so the index becomes that... (0,1,2,3)
 						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
 						atIndex++; // offset for self
 					}
 
-				}
-				if(!added)
-				{
-					// wjat?
 				}
 			}
 
