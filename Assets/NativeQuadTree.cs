@@ -115,8 +115,8 @@ namespace NativeQuadTree
 				elements->Resize<QuadElement<T>>(math.max(incomingElements.Length, elements->Capacity*2));
 			}
 
+			// Prepare morton codes
 			var mortonCodes = new NativeArray<int>(incomingElements.Length, Allocator.Temp);
-
 			var depthExtentsScaling = LookupTables.DepthLookup[maxDepth] / bounds.Extents;
 			for (var i = 0; i < incomingElements.Length; i++)
 			{
@@ -130,23 +130,6 @@ namespace NativeQuadTree
 				mortonCodes[i] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
 			}
 
-			/*
- * Let's say there's 8 depth so there's a a morton code spanning 18 bits: 01001000100111010101
- *
- *  On depth 1				On depth 2				On depth 3
- *
- * 	bit shift 16			bit shift 14			etc..
- *  01|0010001001110101		0100|001001110101
- *
- * 	00 01					0000 0001 0100 0101
- *	10 11			 		0010 0011 0110 0111
- *							1000 1001 1100 1101
- *							1010 1011 1110 1111
- *
- *  the decimal representation within [] will be the index into the lookup array
- *  ( + the offset of all previous depth's data)
- */
-
 			// Index total child element count per node (total, so parent's counts include those of child nodes)
 			for (var i = 0; i < mortonCodes.Length; i++)
 			{
@@ -155,20 +138,9 @@ namespace NativeQuadTree
 				{
 					// Increment the node on this depth that this element is contained in
 					(*(int*) ((IntPtr) lookup->Ptr + atIndex * sizeof (int)))++;
-
-					if(depth != maxDepth)
-					{
-						var atDepth = maxDepth - depth;
-						// Shift to the right and only get the first two bits
-						int shiftedMortonCode = (mortonCodes[i] >> ((atDepth-1) * 2)) & 0b11;
-
-						// so the index becomes that... (0,1,2,3)
-						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
-						atIndex++; // offset for self
-					}
+					atIndex = IncrementIndex(depth, mortonCodes, i, atIndex);
 				}
 			}
-
 
 			// Prepare the tree leaf nodes
 			RecursivePrepareLeaves(1, 1);
@@ -190,22 +162,22 @@ namespace NativeQuadTree
 						break;
 					}
 					// No leaf found, we keep going deeper until we find one
-
-					if(depth != maxDepth)
-					{
-						var atDepth = maxDepth - depth;
-						// Shift to the right and only get the first two bits
-						int shiftedMortonCode = (mortonCodes[i] >> ((atDepth-1) * 2)) & 0b11;
-
-						// so the index becomes that... (0,1,2,3)
-						atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
-						atIndex++; // offset for self
-					}
-
+					atIndex = IncrementIndex(depth, mortonCodes, i, atIndex);
 				}
 			}
 
 			mortonCodes.Dispose();
+		}
+
+		int IncrementIndex(int depth, NativeArray<int> mortonCodes, int i, int atIndex)
+		{
+			var atDepth = math.max(0, maxDepth - depth);
+			// Shift to the right and only get the first two bits
+			int shiftedMortonCode = (mortonCodes[i] >> ((atDepth - 1) * 2)) & 0b11;
+			// so the index becomes that... (0,1,2,3)
+			atIndex += LookupTables.DepthSizeLookup[atDepth] * shiftedMortonCode;
+			atIndex++; // offset for self
+			return atIndex;
 		}
 
 		void RecursivePrepareLeaves(int prevOffset, int depth)

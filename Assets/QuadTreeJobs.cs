@@ -38,7 +38,6 @@ namespace NativeQuadTree
 			[ReadOnly]
 			public NativeQuadTree<T> QuadTree;
 
-		//	[WriteOnly]
 			public NativeList<QuadElement<T>> Results;
 
 			public void Execute()

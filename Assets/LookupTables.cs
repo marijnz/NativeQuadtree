@@ -3,7 +3,7 @@ namespace NativeQuadTree
 	public static class LookupTables
 	{
 		public static readonly ushort[] MortonLookup = {
-		//	0		1		100		101		10000	10001	10100	10101
+		//	0       1       100	    101     10000   10001   10100   10101
 			0x0000, 0x0001, 0x0004, 0x0005, 0x0010, 0x0011, 0x0014, 0x0015,
 		//	1000000	1000001	1000100	1000101	1010000	1010001	1010100	1010101
 			0x0040, 0x0041, 0x0044, 0x0045, 0x0050, 0x0051, 0x0054, 0x0055,
