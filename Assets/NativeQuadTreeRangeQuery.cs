@@ -34,7 +34,7 @@ namespace NativeQuadTree
 			{
 				if(count + 4 * tree.maxLeafElements > fastResults->Capacity)
 				{
-					fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, 4 * tree.maxLeafElements));
+					fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, count + 4 * tree.maxLeafElements));
 				}
 
 				var depthSize = LookupTables.DepthSizeLookup[tree.maxDepth - depth+1];

@@ -216,9 +216,9 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
 #endif
-			lookup->Clear();
-			nodes->Clear();
-			elements->Clear();
+			UnsafeUtility.MemClear(lookup->Ptr, lookup->Capacity * UnsafeUtility.SizeOf<int>());
+			UnsafeUtility.MemClear(nodes->Ptr, nodes->Capacity * UnsafeUtility.SizeOf<QuadNode>());
+			UnsafeUtility.MemClear(elements->Ptr, elements->Capacity * UnsafeUtility.SizeOf<QuadElement<T>>());
 			elementsCount = 0;
 		}
 
