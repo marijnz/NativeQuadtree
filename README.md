@@ -15,7 +15,7 @@ There's some very rudimentary performance tests included. With 20k elements on a
 With Burst disabled the tests are about 10x slower.
 
 ## Stability
-The only tests test for performance so there's no real test coverage. I'm sure there's edge cases that are not cought. I would highly recommend writing if you're planning to use the code in production.
+The only tests test for performance so there's no real test coverage. I'm sure there's edge cases that are not caught. I would highly recommend writing more tests if you're planning to use the code in production.
 
 ## Potential future work / missing features
 - Unit tests
