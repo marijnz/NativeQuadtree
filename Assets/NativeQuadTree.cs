@@ -32,9 +32,11 @@ namespace NativeQuadTree
 	public unsafe partial struct NativeQuadTree<T> : IDisposable where T : unmanaged
 	{
 		// Safety
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
 		AtomicSafetyHandle safetyHandle;
 		[NativeSetClassTypeToNullOnSchedule]
 		DisposeSentinel disposeSentinel;
+#endif
 
 		// Data
 		[NativeDisableUnsafePtrRestriction]
