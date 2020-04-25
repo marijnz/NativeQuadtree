@@ -1,5 +1,5 @@
 # NativeQuadtree
-A Quadtree Native Collection for Unity DOTS
+A Quadtree Native Collection for Unity DOTS. Octree version is here: https://github.com/marijnz/NativeOctree
 
 ## Implementation
 - It's a DOTS native container, meaning it's handling its own unmanaged memory and can be passed into jobs!
@@ -22,4 +22,3 @@ The only tests test for performance so there's no real test coverage. I'm sure t
 - Support for basic shapes
 - Other types of queries, such as raycasts
 - Support individual adding and removing of elements
-- Extend to octree (3d support)
