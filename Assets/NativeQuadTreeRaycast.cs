@@ -33,15 +33,12 @@ namespace NativeQuadTree
 				// Get pointer to inner list data for faster writing
 				fastResults = (UnsafeList*) NativeListUnsafeUtility.GetInternalListDataPtrUnchecked(ref results);
 
-				// Query root node
-				QueryNode(0);
-
 				// Query rest of tree
 				RecursiveRangeQuery(tree.bounds, 1, 1);
 
 				fastResults->Length = count;
 
-				Debug.Log("visited: " + visited + " of " + tree.elementsCount);
+			//	Debug.Log("visited: " + visited + " of " + tree.elementsCount);
 			}
 
 			public void RecursiveRangeQuery(AABB2D parentBounds, int prevOffset, int depth)
@@ -59,31 +56,29 @@ namespace NativeQuadTree
 					if (!DoesIntersect(ray, childBounds)) {
 						continue;
 					}
-
+					
 					var at = prevOffset + l * depthSize;
-					QueryNode(at);
 
 					var elementCount = UnsafeUtility.ReadArrayElement<int>(tree.lookup->Ptr, at);
-					var goDeeper = elementCount > tree.maxLeafElements && depth < tree.maxDepth;
-					if(goDeeper)
+
+					if(elementCount > tree.maxLeafElements && depth < tree.maxDepth)
 					{
 						RecursiveRangeQuery(childBounds, at+1, depth+1);
 					}
-				}
-			}
+					else if(elementCount != 0)
+					{
+						var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, at);
 
-			private void QueryNode(int at) {
-				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, at);
+						for (int k = 0; k < node.count; k++)
+						{
+							var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
+							if(DoesIntersect(ray, element.bounds))
+							{
+								UnsafeUtility.WriteArrayElement(fastResults->Ptr, count++, element);
+							}
 
-				if (node.count > 0) {
-					var actualElementCount = node.count;
-					for (int k = 0; k < actualElementCount; k++) {
-						var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
-						if (DoesIntersect(ray, element.bounds)) {
-							UnsafeUtility.WriteArrayElement(fastResults->Ptr, count++, element);
+							visited++;
 						}
-
-						visited++;
 					}
 				}
 			}
