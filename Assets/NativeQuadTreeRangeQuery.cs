@@ -25,6 +25,10 @@ namespace NativeQuadTree
 				// Get pointer to inner list data for faster writing
 				fastResults = (UnsafeList*) NativeListUnsafeUtility.GetInternalListDataPtrUnchecked(ref results);
 
+				// Query root node
+				QueryNode(0, bounds.Contains(tree.bounds));
+
+				// Query rest of tree
 				RecursiveRangeQuery(tree.bounds, false, 1, 1);
 
 				fastResults->Length = count;
@@ -55,43 +59,41 @@ namespace NativeQuadTree
 						}
 					}
 
-
 					var at = prevOffset + l * depthSize;
+					QueryNode(at, contained);
 
 					var elementCount = UnsafeUtility.ReadArrayElement<int>(tree.lookup->Ptr, at);
-
-					if(elementCount > tree.maxLeafElements && depth < tree.maxDepth)
+					var goDeeper = elementCount > tree.maxLeafElements && depth < tree.maxDepth;
+					if(goDeeper)
 					{
 						RecursiveRangeQuery(childBounds, contained, at+1, depth+1);
 					}
-					else if(elementCount != 0)
-					{
-						var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, at);
+				}
+			}
 
-						if(contained)
-						{
-							var index = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
+			private void QueryNode(int at, bool contained) {
+				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, at);
 
-							UnsafeUtility.MemCpy((void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>()),
-								index, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
-							count += node.count;
-						}
-						else
-						{
-							for (int k = 0; k < node.count; k++)
-							{
-								var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
-								if(bounds.Contains(element.pos))
-								{
-									UnsafeUtility.WriteArrayElement(fastResults->Ptr, count++, element);
-								}
+				if (node.count > 0) {
+					if (contained) {
+						var index = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
+
+						UnsafeUtility.MemCpy((void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>()), index, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
+						count += node.count;
+					}
+					else {
+						var actualElementCount = node.count;
+						for (int k = 0; k < actualElementCount; k++) {
+							var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
+							if (bounds.Intersects(element.bounds)) {
+								UnsafeUtility.WriteArrayElement(fastResults->Ptr, count++, element);
 							}
 						}
 					}
 				}
 			}
 
-			static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
+			public static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
 			{
 				var half = parentBounds.Extents.x * .5f;
 

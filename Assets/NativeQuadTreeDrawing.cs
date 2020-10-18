@@ -30,16 +30,16 @@ namespace NativeQuadTree
 						var element =
 							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
 
-						texture[(int) ((element.pos.x + widthAdd) * widthMult)]
-							[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.red;
+						texture[(int) ((element.bounds.Center.x + widthAdd) * widthMult)]
+							[(int) ((element.bounds.Center.y + heightAdd) * heightMult)] = Color.red;
 					}
 				}
 			}
 
 			foreach (var element in results)
 			{
-				texture[(int) ((element.pos.x + widthAdd) * widthMult)]
-					[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.green;
+				texture[(int) ((element.bounds.Center.x + widthAdd) * widthMult)]
+					[(int) ((element.bounds.Center.y + heightAdd) * heightMult)] = Color.green;
 			}
 
 			DrawBounds(texture, range, tree);

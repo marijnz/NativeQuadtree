@@ -13,15 +13,15 @@ public class QuadTreeTests
 {
     AABB2D Bounds => new AABB2D(0, 1000);
 
-    float2[] GetValues()
+    AABB2D[] GetValues()
     {
         Random.InitState(0);
-        var values = new float2[20000];
+        var values = new AABB2D[20000];
 
         for (int x = 0; x < values.Length; x++)
         {
             var val = new int2((int) Random.Range(-900, 900), (int) Random.Range(-900, 900));
-            values[x] = val;
+            values[x] = new AABB2D(new float2(val.x, val.y), new float2(2, 2));
         }
 
         return values;
@@ -38,7 +38,7 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = values[i],
+                bounds = values[i],
                 element = i
             };
         }
@@ -72,7 +72,7 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = values[i],
+                bounds = values[i],
                 element = i
             };
         }
@@ -103,7 +103,7 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-        var positions = new NativeArray<float2>(values.Length, Allocator.TempJob);
+        var positions = new NativeArray<AABB2D>(values.Length, Allocator.TempJob);
         var quadTree = new NativeQuadTree<int>(Bounds);
 
         positions.CopyFrom(values);
@@ -115,7 +115,7 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = positions[i],
+                bounds = positions[i],
                 element = i
             };
         }
