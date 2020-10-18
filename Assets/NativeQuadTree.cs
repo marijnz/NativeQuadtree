@@ -271,6 +271,14 @@ namespace NativeQuadTree
 #endif
 			new QuadTreeRangeQuery().Query(this, bounds, results);
 		}
+		
+		public void RayQuery(Ray ray, NativeList<QuadElement<T>> results)
+		{
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
+#endif
+			new QuadTreeRaycast().Query(this, ray, results);
+		}
 
 		public void Clear()
 		{

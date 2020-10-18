@@ -10,8 +10,7 @@ namespace NativeQuadTree
 	/// </summary>
 	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
 	{
-		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range,
-			Color[][] texture)
+		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, Color[][] texture)
 		{
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
@@ -41,11 +40,9 @@ namespace NativeQuadTree
 				texture[(int) ((element.bounds.Center.x + widthAdd) * widthMult)]
 					[(int) ((element.bounds.Center.y + heightAdd) * heightMult)] = Color.green;
 			}
-
-			DrawBounds(texture, range, tree);
 		}
 
-		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
+		public static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
 		{
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;

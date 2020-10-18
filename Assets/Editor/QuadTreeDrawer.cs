@@ -22,6 +22,12 @@ public class QuadTreeDrawer : EditorWindow
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
 		window.DoDraw(queryJob);
 	}
+	
+	public static void DrawWithResults<T>(QuadTreeJobs.RayQueryJob<T> queryJob) where T : unmanaged
+	{
+		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
+		window.DoDraw(queryJob);
+	}
 
 	[SerializeField]
 	Color[][] pixels;
@@ -33,12 +39,18 @@ public class QuadTreeDrawer : EditorWindow
 		{
 			pixels[i] = new Color[256];
 		}
-		NativeQuadTree<T>.Draw(quadTree, results, bounds, pixels);
+		NativeQuadTree<T>.Draw(quadTree, results, pixels);
+		NativeQuadTree<T>.DrawBounds(pixels, bounds, quadTree);
 	}
 
 	void DoDraw<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged
 	{
 		DoDraw(queryJob.QuadTree, queryJob.Results, queryJob.Bounds);
+	}
+	
+	void DoDraw<T>(QuadTreeJobs.RayQueryJob<T> queryJob) where T : unmanaged
+	{
+		DoDraw(queryJob.QuadTree, queryJob.Results, new AABB2D());
 	}
 
 	void OnGUI()

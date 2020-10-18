@@ -21,7 +21,7 @@ public class QuadTreeTests
         for (int x = 0; x < values.Length; x++)
         {
             var val = new int2((int) Random.Range(-900, 900), (int) Random.Range(-900, 900));
-            values[x] = new AABB2D(new float2(val.x, val.y), new float2(2, 2));
+            values[x] = new AABB2D(new float2(val.x, val.y), new float2(5, 5));
         }
 
         return values;
@@ -84,6 +84,43 @@ public class QuadTreeTests
         {
             QuadTree = quadTree,
             Bounds = new AABB2D(100, 140),
+            Results = new NativeList<QuadElement<int>>(1000, Allocator.TempJob)
+        };
+
+        var s = Stopwatch.StartNew();
+        queryJob.Run();
+        s.Stop();
+        Debug.Log(s.Elapsed.TotalMilliseconds + " result: " + queryJob.Results.Length);
+
+        QuadTreeDrawer.DrawWithResults(queryJob);
+        quadTree.Dispose();
+        elements.Dispose();
+        queryJob.Results.Dispose();
+    }
+    
+    [Test]
+    public void RayQueryAfterBulk()
+    {
+        var values = GetValues();
+
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+
+        for (int i = 0; i < values.Length; i++)
+        {
+            elements[i] = new QuadElement<int>
+            {
+                bounds = values[i],
+                element = i
+            };
+        }
+
+        var quadTree = new NativeQuadTree<int>(Bounds);
+        quadTree.ClearAndBulkInsert(elements);
+
+        var queryJob = new QuadTreeJobs.RayQueryJob<int>
+        {
+            QuadTree = quadTree,
+            Ray = new NativeQuadTree<int>.Ray { from = new float2(-300, -200), to = new float2(800, 300)},
             Results = new NativeList<QuadElement<int>>(1000, Allocator.TempJob)
         };
 
