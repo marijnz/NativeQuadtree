@@ -122,54 +122,18 @@ namespace NativeQuadTree
 			var depthExtentsScaling = LookupTables.DepthLookup[maxDepth] / bounds.Extents;
 			
 			for (var i = 0; i < incomingElements.Length; i++) {
-				{
-					var incPos = incomingElements[i].bounds.Min;
-					incPos -= bounds.Center; // Offset by center
-					incPos.y = -incPos.y; // World -> array
-					var pos = (incPos + bounds.Extents) * .5f; // Make positive
-					// Now scale into available space that belongs to the depth
-					pos *= depthExtentsScaling;
-					// And interleave the bits for the morton code
-					mortonCodes[i * 4] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
-				}
-				
-				{
-					var incPos = incomingElements[i].bounds.Max;
-					incPos -= bounds.Center; // Offset by center
-					incPos.y = -incPos.y; // World -> array
-					var pos = (incPos + bounds.Extents) * .5f; // Make positive
-					// Now scale into available space that belongs to the depth
-					pos *= depthExtentsScaling;
-					// And interleave the bits for the morton code
-					mortonCodes[i * 4 + 1] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
-				}
-				
-				//TODO FIX
-				{
-					var incPos = incomingElements[i].bounds.Max;
-					incPos.x = incomingElements[i].bounds.Min.x;
-					incPos -= bounds.Center; // Offset by center
-					incPos.y = -incPos.y; // World -> array
-					var pos = (incPos + bounds.Extents) * .5f; // Make positive
-					// Now scale into available space that belongs to the depth
-					pos *= depthExtentsScaling;
-					// And interleave the bits for the morton code
-					mortonCodes[i * 4 + 2] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
-				}
-				
-				//TODO FIX
-				{
-					var incPos = incomingElements[i].bounds.Max;
-					incPos.y = incomingElements[i].bounds.Min.y;
-					incPos -= bounds.Center; // Offset by center
-					incPos.y = -incPos.y; // World -> array
-					var pos = (incPos + bounds.Extents) * .5f; // Make positive
-					// Now scale into available space that belongs to the depth
-					pos *= depthExtentsScaling;
-					// And interleave the bits for the morton code
-					mortonCodes[i * 4 + 3] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
-				}
 
+				var topLeft = incomingElements[i].bounds.Max;
+				topLeft.x = incomingElements[i].bounds.Min.x;
+				var topRight = incomingElements[i].bounds.Max;
+				var bottomRight = incomingElements[i].bounds.Max;
+				bottomRight.y = incomingElements[i].bounds.Min.y;
+				var bottomLeft = incomingElements[i].bounds.Min;
+
+				WriteMortonCode(topLeft, depthExtentsScaling, mortonCodes, i * 4);
+				WriteMortonCode(topRight, depthExtentsScaling, mortonCodes, i * 4 + 1);
+				WriteMortonCode(bottomRight, depthExtentsScaling, mortonCodes, i * 4 + 2);
+				WriteMortonCode(bottomLeft, depthExtentsScaling, mortonCodes, i * 4 + 3);
 			}
 
 			// Index total child element count per node (total, so parent's counts include those of child nodes)
@@ -187,28 +151,83 @@ namespace NativeQuadTree
 			// Prepare the tree leaf nodes
 			RecursivePrepareLeaves(1, 1);
 
-			// Add elements to leaf nodes
-			for (var i = 0; i < mortonCodes.Length; i++)
-			{
+			/*
+			for (var i = 0; i < mortonCodes.Length; i++) {
 				int atIndex = 0;
 
 				for (int depth = 0; depth <= maxDepth; depth++)
 				{
 					var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
-					if(node.isLeaf)
-					{
-						// We found a leaf, add this element to it and move to the next element
-						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i/4]);
-						node.count++;
-						UnsafeUtility.WriteArrayElement(nodes->Ptr, atIndex, node);
+					if(node.isLeaf) {
+						AddToNode(incomingElements, atIndex, i /4);
 						break;
 					}
 					// No leaf found, we keep going deeper until we find one
 					atIndex = IncrementIndex(depth, mortonCodes, i, atIndex);
 				}
 			}
+			*/
+			
+			var results = stackalloc int[4];
+			// Add elements to leaf nodes
+			for (var i = 0; i < incomingElements.Length; i++) {
+				var at = i * 4;
+				for (int j = 0; j < 4; j++) {
+					int atIndex = 0;
+
+					for (int depth = 0; depth <= maxDepth; depth++)
+					{
+						var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
+						if(node.isLeaf) {
+							results[j] = atIndex;
+							break;
+						}
+						// No leaf found, we keep going deeper until we find one
+						atIndex = IncrementIndex(depth, mortonCodes, at + j, atIndex);
+					}
+				}
+
+				if (results[1] == results[3]) {
+					// Min and max are same, so all are in the same node
+					AddToNode(incomingElements, results[2], i);
+				} else if (results[0] == results[1]) {
+					// Top and bottom are in different nodes
+					AddToNode(incomingElements, results[0], i);
+					AddToNode(incomingElements, results[2], i);
+				} else if (results[0] == results[2]) {
+					// Left and right are in different nodes
+					AddToNode(incomingElements, results[0], i);
+					AddToNode(incomingElements, results[1], i);
+				} else{
+					// All are in different nodes
+					AddToNode(incomingElements, results[0], i);
+					AddToNode(incomingElements, results[1], i);
+					AddToNode(incomingElements, results[2], i);
+					AddToNode(incomingElements, results[3], i);
+				}
+			}
 
 			mortonCodes.Dispose();
+		}
+
+		private void WriteMortonCode(float2 topLeft, float2 depthExtentsScaling, NativeArray<int> mortonCodes, int i) {
+			var incPos = topLeft;
+			incPos -= bounds.Center; // Offset by center
+			incPos.y = -incPos.y; // World -> array
+			var pos = (incPos + bounds.Extents) * .5f; // Make positive
+			// Now scale into available space that belongs to the depth
+			pos *= depthExtentsScaling;
+			// And interleave the bits for the morton code
+			mortonCodes[i] = (LookupTables.MortonLookup[(int) pos.x] | (LookupTables.MortonLookup[(int) pos.y] << 1));
+		}
+
+		private void AddToNode(NativeArray<QuadElement<T>> incomingElements, int nodeIndex, int elementIndex) {
+			var node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, nodeIndex);
+
+			// We found a leaf, add this element to it and move to the next element
+			UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[elementIndex]);
+			node.count++;
+			UnsafeUtility.WriteArrayElement(nodes->Ptr, nodeIndex, node);
 		}
 
 		int IncrementIndex(int depth, NativeArray<int> mortonCodes, int i, int atIndex)
