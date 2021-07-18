@@ -209,7 +209,15 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
 #endif
-			new QuadTreeRangeQuery().Query(this, bounds, results);
+			new QuadTreeRectRangeQuery().Query(this, bounds, results);
+		}
+
+		public void RangeQuery(Circle2D bounds, NativeList<QuadElement<T>> results)
+		{
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
+#endif
+			new QuadTreeCircleRangeQuery().Query(this, bounds, results);
 		}
 
 		public void Clear()

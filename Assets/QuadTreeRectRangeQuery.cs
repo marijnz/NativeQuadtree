@@ -7,7 +7,7 @@ namespace NativeQuadTree
 {
 	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
 	{
-		struct QuadTreeRangeQuery
+		struct QuadTreeRectRangeQuery
 		{
 			NativeQuadTree<T> tree;
 
@@ -105,6 +105,5 @@ namespace NativeQuadTree
 				}
 			}
 		}
-
 	}
 }
