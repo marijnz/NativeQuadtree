@@ -1,18 +1,21 @@
+using System.Runtime.CompilerServices;
 using NativeQuadTree;
 using Unity.Mathematics;
 
 namespace NativeQuadTree
 {
-    public class Circle2D
+    public struct Circle2D
     {
         public float2 Center;
         public float Radious;
         
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(float2 point)
         {
             return math.distance(point, Center) <= Radious; 
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(AABB2D b) {
             return Contains(b.Center + new float2(-b.Extents.x, -b.Extents.y)) &&
                    Contains(b.Center + new float2(-b.Extents.x, b.Extents.y)) &&
@@ -20,6 +23,7 @@ namespace NativeQuadTree
                    Contains(b.Center + new float2(b.Extents.x, b.Extents.y));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Intersects(AABB2D b)
         {
             float2 center = new float2()
@@ -31,6 +35,7 @@ namespace NativeQuadTree
             return Contains(center);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Intersects(Circle2D b)
         {
             return math.distance(Center, b.Center) <= Radious + b.Radious;
