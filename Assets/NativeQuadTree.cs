@@ -75,7 +75,7 @@ namespace NativeQuadTree
 			}
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-			CollectionHelper.CheckIsUnmanaged<T>();
+			//CollectionHelper.CheckIsUnmanaged<T>();
 			DisposeSentinel.Create(out safetyHandle, out disposeSentinel, 1, allocator);
 #endif
 

@@ -14,7 +14,9 @@ public class QuadTreeDrawer : EditorWindow
 	public static void Draw<T>(NativeQuadTree<T> quadTree) where T : unmanaged
 	{
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
-		window.DoDraw(quadTree, default, default);
+		NativeList<QuadElement<T>> results = new NativeList<QuadElement<T>>(Allocator.TempJob);
+		window.DoDraw(quadTree, results, default);
+		results.Dispose();
 	}
 
 	public static void DrawWithResults<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged

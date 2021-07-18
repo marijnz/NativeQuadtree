@@ -32,7 +32,7 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-        var elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.TempJob);
+        var elements = new NativeArray<QuadElement<int>>(values.Length, Allocator.Persistent);
 
         for (int i = 0; i < values.Length; i++)
         {
@@ -103,13 +103,10 @@ public class QuadTreeTests
     {
         var values = GetValues();
 
-        var positions = new NativeArray<float2>(values.Length, Allocator.TempJob);
+        var positions = new NativeArray<float2>(values, Allocator.Persistent);
         var quadTree = new NativeQuadTree<int>(Bounds);
 
-        positions.CopyFrom(values);
-
-
-        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(positions.Length, Allocator.Temp);
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(positions.Length, Allocator.Persistent);
 
         for (int i = 0; i < positions.Length; i++)
         {
@@ -128,7 +125,9 @@ public class QuadTreeTests
         Debug.Log(s.Elapsed.TotalMilliseconds);
 
         QuadTreeDrawer.Draw(quadTree);
+        
         quadTree.Dispose();
         positions.Dispose();
+        elements.Dispose();
     }
 }

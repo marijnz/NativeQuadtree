@@ -1,0 +1,20 @@
+{
+  "name": "com.crener.native_quad_tree",
+  "version": "0.1.0",
+  "displayName": "Native Quad Tree",
+  "description": "A powerful Unity ECS system to render massive numbers of animated sprites.",
+  "unity": "2020.2",
+  "dependencies": {
+    "com.unity.collections": "0.14.0-preview.16",
+    "com.unity.burst": "1.5.4",
+    "com.unity.mathematics": "1.2.1"
+ },
+ "keywords": [
+    "Dots",
+    "2D"
+  ],
+  "author": {
+    "name": "",
+    "url": ""
+  }
+}
