@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -18,11 +19,21 @@ namespace NativeQuadTree
 			[ReadOnly]
 			public NativeArray<QuadElement<T>> Elements;
 
-			public NativeQuadTree<T> QuadTree;
+			public NativeReference<NativeQuadTree<T>> QuadTree;
 
 			public void Execute()
 			{
-				QuadTree.ClearAndBulkInsert(Elements);
+				NativeQuadTree<T> quadTree = QuadTree.Value;
+				quadTree.ClearAndBulkInsert(Elements);
+				QuadTree.Value = quadTree;
+
+				ValidateData();
+			}
+			
+			[BurstDiscard, Conditional("UNITY_ASSERTIONS")]
+			private void ValidateData()
+			{
+				UnityEngine.Assertions.Assert.AreEqual(Elements.Length, QuadTree.Value.EntryCount, "Failed to populate entityData");
 			}
 		}
 

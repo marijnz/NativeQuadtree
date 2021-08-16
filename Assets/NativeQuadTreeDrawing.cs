@@ -10,24 +10,23 @@ namespace NativeQuadTree
 	/// </summary>
 	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
 	{
-		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range,
-			Color[][] texture)
+		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range, Color[][] texture)
 		{
-			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
-			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
+			float widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
+			float heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
 
-			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
-			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
+			float widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
+			float heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
 
 			for (int i = 0; i < tree.nodes->Capacity; i++)
 			{
-				var node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, i);
+				QuadNode node = UnsafeUtility.ReadArrayElement<QuadNode>(tree.nodes->Ptr, i);
 
 				if(node.count > 0)
 				{
 					for (int k = 0; k < node.count; k++)
 					{
-						var element =
+						QuadElement<T> element =
 							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
 
 						texture[(int) ((element.pos.x + widthAdd) * widthMult)]
@@ -36,7 +35,7 @@ namespace NativeQuadTree
 				}
 			}
 
-			foreach (var element in results)
+			foreach (QuadElement<T> element in results)
 			{
 				texture[(int) ((element.pos.x + widthAdd) * widthMult)]
 					[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.green;
@@ -47,25 +46,25 @@ namespace NativeQuadTree
 
 		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
 		{
-			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
-			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
+			float widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
+			float heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
 
-			var widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
-			var heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
+			float widthAdd = tree.bounds.Center.x + tree.bounds.Extents.x;
+			float heightAdd = tree.bounds.Center.y + tree.bounds.Extents.y;
 
-			var top = new float2(bounds.Center.x, bounds.Center.y - bounds.Extents.y);
-			var left = new float2(bounds.Center.x - bounds.Extents.x, bounds.Center.y);
+			float2 top = new float2(bounds.Center.x, bounds.Center.y - bounds.Extents.y);
+			float2 left = new float2(bounds.Center.x - bounds.Extents.x, bounds.Center.y);
 
 			for (int leftToRight = 0; leftToRight < bounds.Extents.x * 2; leftToRight++)
 			{
-				var poxX = left.x + leftToRight;
+				float poxX = left.x + leftToRight;
 				texture[(int) ((poxX + widthAdd) * widthMult)][(int) ((bounds.Center.y + heightAdd + bounds.Extents.y) * heightMult)] = Color.blue;
 				texture[(int) ((poxX + widthAdd) * widthMult)][(int) ((bounds.Center.y + heightAdd - bounds.Extents.y) * heightMult)] = Color.blue;
 			}
 
 			for (int topToBottom = 0; topToBottom < bounds.Extents.y * 2; topToBottom++)
 			{
-				var posY = top.y + topToBottom;
+				float posY = top.y + topToBottom;
 				texture[(int) ((bounds.Center.x + widthAdd + bounds.Extents.x) * widthMult)][(int) ((posY + heightAdd) * heightMult)] = Color.blue;
 				texture[(int) ((bounds.Center.x + widthAdd - bounds.Extents.x) * widthMult)][(int) ((posY + heightAdd) * heightMult)] = Color.blue;
 			}
