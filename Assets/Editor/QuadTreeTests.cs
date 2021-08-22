@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using NUnit.Framework;
 using NativeQuadTree;
+using NativeQuadTree.Jobs;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
@@ -38,14 +39,14 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = values[i],
-                element = i
+                Pos = values[i],
+                Element = i
             };
         }
 
         NativeReference<NativeQuadTree<int>> data = new NativeReference<NativeQuadTree<int>>(Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
         data.Value = new NativeQuadTree<int>(Bounds);
-        var job = new QuadTreeJobs.AddBulkJob<int>
+        var job = new AddBulkJob<int>
         {
             Elements = elements,
             QuadTree = data
@@ -75,15 +76,15 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = values[i],
-                element = i
+                Pos = values[i],
+                Element = i
             };
         }
 
         var quadTree = new NativeQuadTree<int>(Bounds);
         quadTree.ClearAndBulkInsert(elements);
 
-        var queryJob = new QuadTreeJobs.RangeQueryJob<int>
+        var queryJob = new RangeQueryJob<int>
         {
             QuadTree = quadTree,
             Bounds = new AABB2D(100, 140),
@@ -115,8 +116,8 @@ public class QuadTreeTests
         {
             elements[i] = new QuadElement<int>
             {
-                pos = positions[i],
-                element = i
+                Pos = positions[i],
+                Element = i
             };
         }
 

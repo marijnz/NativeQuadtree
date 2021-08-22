@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Mono.Cecil.Cil;
+using NativeQuadTree.Jobs.Internal;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -10,23 +11,6 @@ using UnityEngine.Assertions;
 
 namespace NativeQuadTree
 {
-	// Represents an element node in the quadtree.
-	public struct QuadElement<T> where T : unmanaged
-	{
-		public float2 pos;
-		public T element;
-	}
-
-	struct QuadNode
-	{
-		// Points to this node's first child index in elements
-		public int firstChildIndex;
-
-		// Number of elements in the leaf
-		public ushort count;
-		public bool isLeaf;
-	}
-
 	/// <summary>
 	/// A QuadTree aimed to be used with Burst, supports fast bulk insertion and querying.
 	///
@@ -34,7 +18,7 @@ namespace NativeQuadTree
 	/// - Better test coverage
 	/// - Automated depth / bounds / max leaf elements calculation
 	/// </summary>
-	public unsafe partial struct NativeQuadTree<T> : IDisposable where T : unmanaged
+	public unsafe struct NativeQuadTree<T> : IDisposable where T : unmanaged
 	{
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 		// Safety
@@ -44,21 +28,23 @@ namespace NativeQuadTree
 #endif
 		// Data
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* elements;
+		public UnsafeList* elements;
 
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* lookup;
+		public UnsafeList* lookup;
 
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* nodes;
+		public UnsafeList* nodes;
 
 		public int EntryCount => elementsCount;
-		int elementsCount;
+		private int elementsCount;
 
-		int maxDepth;
-		ushort maxLeafElements;
+		public int MaxDepth => m_maxDepth;
+		private int m_maxDepth;
+		public ushort MaxLeafElements => maxLeafElements;
+		private ushort maxLeafElements;
 
-		AABB2D bounds; // NOTE: Currently assuming uniform
+		internal AABB2D bounds; // NOTE: Currently assuming uniform
 
 		/// <summary>
 		/// Create a new QuadTree.
@@ -70,7 +56,7 @@ namespace NativeQuadTree
 		) : this()
 		{
 			this.bounds = bounds;
-			this.maxDepth = maxDepth;
+			this.m_maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
 			elementsCount = 0;
 
@@ -129,7 +115,7 @@ namespace NativeQuadTree
 			mortonCodes.Dispose();
 		}
 
-		private void InitialiseBulkInsert(NativeArray<QuadElement<T>> incomingElements)
+		internal void InitialiseBulkInsert(NativeArray<QuadElement<T>> incomingElements)
 		{
 			// Always have to clear before bulk insert as otherwise the lookup and node allocations need to account
 			// for existing data.
@@ -151,21 +137,21 @@ namespace NativeQuadTree
 		}
 
 		[BurstCompatible]
-		private void AddElementsToLeafNodes(NativeArray<int> mortonCodes, NativeArray<QuadElement<T>> incomingElements)
+		internal void AddElementsToLeafNodes(NativeArray<int> mortonCodes, NativeArray<QuadElement<T>> incomingElements)
 		{
 			for (int i = 0; i < incomingElements.Length; i++)
 			{
 				int atIndex = 0;
-				for (int depth = 0; depth <= maxDepth; depth++)
+				for (int depth = 0; depth <= m_maxDepth; depth++)
 				{
 					QuadNode node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
 					if(node.isLeaf)
 					{
-						#if UNITY_ASSERTIONS && !ENABLE_BURST_AOT
+						#if UNITY_ASSERTIONS
 						if(node.count > maxLeafElements)
 						{
 							// the allocation done in the constructor limits the amount of elements in each leaf
-							AssertIsTrue(false, "Quad Tree node {0} is filled with elements, consider allocating a larger leaf node size than {1}", atIndex, maxLeafElements);
+							AssertIsTrue(false, "Quad Tree node " + atIndex + " is filled with elements, consider allocating a larger leaf node size than " + maxLeafElements);
 						}
 						#endif
 						
@@ -182,9 +168,9 @@ namespace NativeQuadTree
 		}
 
 		[BurstDiscard, StringFormatMethod("message")]
-		private static void AssertIsTrue(bool condition, string message, params object[] parts)
+		private static void AssertIsTrue(bool condition, string message)
 		{
-			Assert.IsTrue(condition, string.Format(message, parts));
+			Assert.IsTrue(condition, message);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -197,12 +183,12 @@ namespace NativeQuadTree
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void PrepairMortonCodesInitial(NativeArray<QuadElement<T>> incomingElements, NativeArray<int> mortonCodes)
+		internal void PrepairMortonCodesInitial(NativeArray<QuadElement<T>> incomingElements, NativeArray<int> mortonCodes)
 		{
-			float2 depthExtentsScaling = LookupTables.DepthLookup[maxDepth] / bounds.Extents;
+			float2 depthExtentsScaling = LookupTables.DepthLookup[m_maxDepth] / bounds.Extents;
 			for (int i = 0; i < incomingElements.Length; i++)
 			{
-				float2 incPos = incomingElements[i].pos;
+				float2 incPos = incomingElements[i].Pos;
 				incPos -= bounds.Center; // Offset by center
 				incPos.y = -incPos.y; // World -> array
 				float2 pos = (incPos + bounds.Extents) * .5f; // Make positive
@@ -214,13 +200,13 @@ namespace NativeQuadTree
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		private void PrepairMortonCodesIndex(NativeArray<int> mortonCodes)
+		internal void PrepairMortonCodesIndex(NativeArray<int> mortonCodes)
 		{
 			// Index total child element count per node (total, so parent's counts include those of child nodes)
 			for (int i = 0; i < mortonCodes.Length; i++)
 			{
 				int atIndex = 0;
-				for (int depth = 0; depth <= maxDepth; depth++)
+				for (int depth = 0; depth <= m_maxDepth; depth++)
 				{
 					// Increment the node on this depth that this element is contained in
 					(*(int*) ((IntPtr) lookup->Ptr + atIndex * sizeof (int)))++;
@@ -230,9 +216,9 @@ namespace NativeQuadTree
 		}
 
 		[BurstCompatible]
-		int IncrementIndex(int depth, NativeArray<int> mortonCodes, int i, int atIndex)
+		internal int IncrementIndex(int depth, NativeArray<int> mortonCodes, int i, int atIndex)
 		{
-			int atDepth = math.max(0, maxDepth - depth);
+			int atDepth = math.max(0, m_maxDepth - depth);
 			// Shift to the right and only get the first two bits
 			int shiftedMortonCode = (mortonCodes[i] >> ((atDepth - 1) * 2)) & 0b11;
 			// so the index becomes that... (0,1,2,3)
@@ -241,15 +227,15 @@ namespace NativeQuadTree
 			return atIndex;
 		}
 
-		void RecursivePrepareLeaves(int prevOffset, int depth)
+		internal void RecursivePrepareLeaves(int prevOffset, int depth)
 		{
 			for (int l = 0; l < 4; l++)
 			{
-				int at = prevOffset + l * LookupTables.DepthSizeLookup[maxDepth - depth+1];
+				int at = prevOffset + l * LookupTables.DepthSizeLookup[m_maxDepth - depth+1];
 
 				int elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
 
-				if(elementCount > maxLeafElements && depth < maxDepth)
+				if(elementCount > maxLeafElements && depth < m_maxDepth)
 				{
 					// There's more elements than allowed on this node so keep going deeper
 					RecursivePrepareLeaves(at+1, depth+1);
@@ -269,7 +255,7 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
 #endif
-			new QuadTreeRectRangeQuery().Query(this, bounds, results);
+			new QuadTreeRectRangeQuery<T>().Query(this, bounds, results);
 		}
 
 		public void RangeQuery(Circle2D bounds, NativeList<QuadElement<T>> results)
@@ -277,7 +263,7 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 			AtomicSafetyHandle.CheckReadAndThrow(safetyHandle);
 #endif
-			new QuadTreeCircleRangeQuery().Query(this, bounds, results);
+			new QuadTreeCircleRangeQuery<T>().Query(this, bounds, results);
 		}
 
 		public void Clear()

@@ -5,9 +5,9 @@ using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
-namespace NativeQuadTree
+namespace NativeQuadTree.Jobs
 {
-    public unsafe partial struct NativeQuadTree<T> where T : unmanaged
+    public static class NativeQuadTreeParallelAdd<T> where T : unmanaged
     {
         public static JobHandle SetupBulkAddJobChain(NativeReference<NativeQuadTree<T>> tree, NativeArray<QuadElement<T>> quadElementArray, JobHandle dependency)
         {
@@ -94,10 +94,10 @@ namespace NativeQuadTree
             public void Execute(int startIndex, int count)
             {
                 NativeQuadTree<T> quadTree = QuadTree.Value;
-                float2 depthExtentsScaling = LookupTables.DepthLookup[quadTree.maxDepth] / quadTree.bounds.Extents;
+                float2 depthExtentsScaling = LookupTables.DepthLookup[quadTree.MaxDepth] / quadTree.bounds.Extents;
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
-                    float2 incPos = Elements[i].pos;
+                    float2 incPos = Elements[i].Pos;
                     incPos -= quadTree.bounds.Center; // Offset by center
                     incPos.y = -incPos.y; // World -> array
                     float2 pos = (incPos + quadTree.bounds.Extents) * .5f; // Make positive
@@ -110,7 +110,7 @@ namespace NativeQuadTree
         }
 
         [BurstCompile]
-        private struct IndexMortonCodesJob : IJobParallelForBatch
+        private unsafe struct IndexMortonCodesJob : IJobParallelForBatch
         {
             public NativeArray<int> MortonCodes;
             [ReadOnly]
@@ -129,7 +129,7 @@ namespace NativeQuadTree
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
                     int atIndex = 0;
-                    for (int depth = 0; depth <= quadTree.maxDepth; depth++)
+                    for (int depth = 0; depth <= quadTree.MaxDepth; depth++)
                     {
                         // Increment the node on this depth that this element is contained in
                         (*(int*) ((IntPtr) quadTree.lookup->Ptr + atIndex * sizeof (int)))++;
@@ -168,13 +168,13 @@ namespace NativeQuadTree
                 QuadTree.Value = quadTree;
             }
 
-            public void Execute(int startIndex, int count)
+            /*public void Execute(int startIndex, int count)
             {
                 NativeQuadTree<T> quadTree = QuadTree.Value;
                 for (int i = startIndex; i < count; i++)
                 {
                     int atIndex = 0;
-                    for (int depth = 0; depth <= quadTree.maxDepth; depth++)
+                    for (int depth = 0; depth <= quadTree.MaxDepth; depth++)
                     {
                         QuadNode node = UnsafeUtility.ReadArrayElement<QuadNode>(quadTree.nodes->Ptr, atIndex);
                         if(node.isLeaf)
@@ -190,7 +190,7 @@ namespace NativeQuadTree
                         atIndex = quadTree.IncrementIndex(depth, MortonCodes, i, atIndex);
                     }
                 }
-            }
+            }*/
         }
     }
 }

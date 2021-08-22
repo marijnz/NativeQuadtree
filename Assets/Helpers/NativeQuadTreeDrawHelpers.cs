@@ -8,7 +8,7 @@ namespace NativeQuadTree
 	/// <summary>
 	/// Editor drawing of the NativeQuadTree
 	/// </summary>
-	public unsafe partial struct NativeQuadTree<T> where T : unmanaged
+	public unsafe struct NativeQuadTreeDrawHelpers<T> where T : unmanaged
 	{
 		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range, Color[][] texture)
 		{
@@ -29,22 +29,22 @@ namespace NativeQuadTree
 						QuadElement<T> element =
 							UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);
 
-						texture[(int) ((element.pos.x + widthAdd) * widthMult)]
-							[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.red;
+						texture[(int) ((element.Pos.x + widthAdd) * widthMult)]
+							[(int) ((element.Pos.y + heightAdd) * heightMult)] = Color.red;
 					}
 				}
 			}
 
 			foreach (QuadElement<T> element in results)
 			{
-				texture[(int) ((element.pos.x + widthAdd) * widthMult)]
-					[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.green;
+				texture[(int) ((element.Pos.x + widthAdd) * widthMult)]
+					[(int) ((element.Pos.y + heightAdd) * heightMult)] = Color.green;
 			}
 
 			DrawBounds(texture, range, tree);
 		}
 
-		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
+		private static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
 		{
 			float widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			float heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
