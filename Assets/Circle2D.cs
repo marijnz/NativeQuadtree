@@ -8,31 +8,18 @@ namespace NativeQuadTree
     {
         public float2 Center;
         public float Radious;
-        
+
+        public Circle2D(float2 center, float radious) 
+            : this()
+        {
+            Center = center;
+            Radious = radious;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Contains(float2 point)
         {
             return math.distance(point, Center) <= Radious; 
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Contains(AABB2D b) {
-            return Contains(b.Center + new float2(-b.Extents.x, -b.Extents.y)) &&
-                   Contains(b.Center + new float2(-b.Extents.x, b.Extents.y)) &&
-                   Contains(b.Center + new float2(b.Extents.x, -b.Extents.y)) &&
-                   Contains(b.Center + new float2(b.Extents.x, b.Extents.y));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Intersects(AABB2D b)
-        {
-            float2 center = new float2()
-            {
-                x = math.clamp(Center.x, b.Center.x - b.Extents.x, b.Center.x + b.Extents.x),
-                y = math.clamp(Center.y, b.Center.y - b.Extents.y, b.Center.y + b.Extents.y)
-            };
-
-            return Contains(center);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

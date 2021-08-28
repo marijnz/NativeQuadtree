@@ -61,7 +61,6 @@ public class QuadTreeTests
 
         QuadTreeDrawer.Draw(data.Value);
         job.QuadTree.Dispose();
-        data.Dispose();
         elements.Dispose();
     }
 

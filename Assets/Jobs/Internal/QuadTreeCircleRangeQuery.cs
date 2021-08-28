@@ -43,11 +43,11 @@ namespace NativeQuadTree.Jobs.Internal
                 var contained = parentContained;
                 if(!contained)
                 {
-                    if(bounds.Contains(childBounds))
+                    if(childBounds.Contains(bounds))
                     {
                         contained = true;
                     }
-                    else if(!bounds.Intersects(childBounds))
+                    else if(!childBounds.Intersects(bounds))
                     {
                         continue;
                     }
@@ -55,7 +55,6 @@ namespace NativeQuadTree.Jobs.Internal
 
 
                 var at = prevOffset + l * depthSize;
-
                 var elementCount = UnsafeUtility.ReadArrayElement<int>(tree.lookup->Ptr, at);
 
                 if(elementCount > tree.MaxLeafElements && depth < tree.MaxDepth)
@@ -68,10 +67,9 @@ namespace NativeQuadTree.Jobs.Internal
 
                     if(contained)
                     {
-                        var index = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
-
-                        UnsafeUtility.MemCpy((void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>()),
-                            index, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
+                        void* source = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
+                        void* destination = (void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>());
+                        UnsafeUtility.MemCpy(destination, source, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
                         count += node.count;
                     }
                     else

@@ -42,10 +42,10 @@ namespace NativeQuadTree.Jobs
             const int threadBucketSize = 100;
             
             JobHandle initHandle = init.Schedule(dependency);
-            JobHandle morton1Handle = mortonCreate.ScheduleBatch(quadElementArray.Length, threadBucketSize, initHandle);
             //JobHandle morton1Handle = mortonCreate.Schedule(initHandle);
-            JobHandle morton2Handle = mortonIndex.ScheduleBatch(quadElementArray.Length, threadBucketSize, morton1Handle);
-            //JobHandle morton2Handle = mortonIndex.Schedule(morton1Handle);
+            JobHandle morton1Handle = mortonCreate.ScheduleBatch(quadElementArray.Length, threadBucketSize, initHandle);
+            JobHandle morton2Handle = mortonIndex.Schedule(morton1Handle);
+            //JobHandle morton2Handle = mortonIndex.ScheduleBatch(quadElementArray.Length, threadBucketSize, morton1Handle);
             JobHandle prepairLeavesHandle = prepairLeaves.Schedule(morton2Handle);
             JobHandle populateHandle = leafJob.Schedule(prepairLeavesHandle);
             mortonCreate.MortonCodes.Dispose(populateHandle);
@@ -69,7 +69,7 @@ namespace NativeQuadTree.Jobs
         }
 
         [BurstCompile]
-        private struct PrepairMortonCodesJob : IJobParallelForBatch
+        private struct PrepairMortonCodesJob : IJob, IJobParallelForBatch
         {
             [ReadOnly]
             public NativeArray<QuadElement<T>> Elements;
@@ -110,7 +110,7 @@ namespace NativeQuadTree.Jobs
         }
 
         [BurstCompile]
-        private unsafe struct IndexMortonCodesJob : IJobParallelForBatch
+        private unsafe struct IndexMortonCodesJob : IJob//ParallelForBatch
         {
             public NativeArray<int> MortonCodes;
             [ReadOnly]

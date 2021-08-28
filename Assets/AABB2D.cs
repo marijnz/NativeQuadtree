@@ -1,9 +1,11 @@
 using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Unity.Mathematics;
 
 namespace NativeQuadTree
 {
-	[Serializable]
+	[Serializable, DebuggerDisplay("Center: {Center}, Extents: {Extents}")]
 	public struct AABB2D {
 		public float2 Center;
 		public float2 Extents;
@@ -37,10 +39,43 @@ namespace NativeQuadTree
 		}
 
 		public bool Contains(AABB2D b) {
-			return Contains(b.Center + new float2(-b.Extents.x, -b.Extents.y)) &&
+			return Contains(b.Center + -b.Extents) &&
 			       Contains(b.Center + new float2(-b.Extents.x, b.Extents.y)) &&
 			       Contains(b.Center + new float2(b.Extents.x, -b.Extents.y)) &&
-			       Contains(b.Center + new float2(b.Extents.x, b.Extents.y));
+			       Contains(b.Center + b.Extents);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public bool Contains(Circle2D b)
+		{
+			float closestX = math.clamp(b.Center.x, Center.x - Extents.x, Center.x + Extents.x);
+			if(math.distance(closestX, b.Center.x) < b.Radious)
+			{
+				return true;
+			}
+			
+			float closestY = math.clamp(b.Center.y, Center.y - Extents.y, Center.y + Extents.y);
+			if(math.distance(closestY, b.Center.y) < b.Radious)
+			{
+				return true;
+			}
+
+			return math.distance(Center, b.Center + -Extents) <= b.Radious &&
+			       math.distance(Center, b.Center + new float2(-Extents.x, Extents.y)) <= b.Radious &&
+			       math.distance(Center, b.Center + new float2(Extents.x, -Extents.y)) <= b.Radious &&
+			       math.distance(Center, b.Center + Extents.x) <= b.Radious;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public bool Intersects(Circle2D b)
+		{
+			float2 squareEdgePoint = new float2
+			{
+				x = math.clamp(b.Center.x, Center.x - Extents.x, Center.x + Extents.x),
+				y = math.clamp(b.Center.y, Center.y - Extents.y, Center.y + Extents.y)
+			};
+
+			return math.distance(squareEdgePoint, Center) <= b.Radious; 
 		}
 
 		public bool Intersects(AABB2D b)

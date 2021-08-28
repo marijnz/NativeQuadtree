@@ -56,7 +56,7 @@ namespace NativeQuadTree
 		) : this()
 		{
 			this.bounds = bounds;
-			this.m_maxDepth = maxDepth;
+			m_maxDepth = maxDepth;
 			this.maxLeafElements = maxLeafElements;
 			elementsCount = 0;
 
@@ -148,11 +148,7 @@ namespace NativeQuadTree
 					if(node.isLeaf)
 					{
 						#if UNITY_ASSERTIONS
-						if(node.count > maxLeafElements)
-						{
-							// the allocation done in the constructor limits the amount of elements in each leaf
-							AssertIsTrue(false, "Quad Tree node " + atIndex + " is filled with elements, consider allocating a larger leaf node size than " + maxLeafElements);
-						}
+						AssertIsTrue(atIndex, node.count);
 						#endif
 						
 						// We found a leaf, add this element to it and move to the next element
@@ -168,9 +164,13 @@ namespace NativeQuadTree
 		}
 
 		[BurstDiscard, StringFormatMethod("message")]
-		private static void AssertIsTrue(bool condition, string message)
+		private void AssertIsTrue(int index, int nodeCount)
 		{
-			Assert.IsTrue(condition, message);
+			if(nodeCount > maxLeafElements)
+			{
+				// the allocation done in the constructor limits the amount of elements in each leaf
+				Assert.IsTrue(false, "Quad Tree node " + index + " is filled with elements, consider allocating a larger leaf node size than " + maxLeafElements);
+			}
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -182,6 +182,11 @@ namespace NativeQuadTree
 			return mortonCodes;
 		}
 
+		/// <summary>
+		/// Calculates the morton code for each item inside <paramref name="incomingElements"/>
+		/// </summary>
+		/// <param name="incomingElements">all items being stored</param>
+		/// <param name="mortonCodes">temporary index for storing morton code indexes</param>
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		internal void PrepairMortonCodesInitial(NativeArray<QuadElement<T>> incomingElements, NativeArray<int> mortonCodes)
 		{
@@ -209,7 +214,7 @@ namespace NativeQuadTree
 				for (int depth = 0; depth <= m_maxDepth; depth++)
 				{
 					// Increment the node on this depth that this element is contained in
-					(*(int*) ((IntPtr) lookup->Ptr + atIndex * sizeof (int)))++;
+					(*(int*) ((IntPtr) lookup->Ptr + (atIndex * sizeof (int))))++;
 					atIndex = IncrementIndex(depth, mortonCodes, i, atIndex);
 				}
 			}
@@ -232,7 +237,6 @@ namespace NativeQuadTree
 			for (int l = 0; l < 4; l++)
 			{
 				int at = prevOffset + l * LookupTables.DepthSizeLookup[m_maxDepth - depth+1];
-
 				int elementCount = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, at);
 
 				if(elementCount > maxLeafElements && depth < m_maxDepth)
