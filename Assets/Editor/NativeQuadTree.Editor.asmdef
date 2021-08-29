@@ -1,6 +1,6 @@
 {
     "name": "NativeQuadTree.Editor",
-    "rootNamespace": "",
+    "rootNamespace": "NativeQuadTree.Editor",
     "references": [
         "GUID:4259b4454b3b86a4790bd00dd10d9797",
         "GUID:d8b63aba1907145bea998dd612889d6b",

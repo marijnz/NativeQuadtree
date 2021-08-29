@@ -62,7 +62,7 @@ public class CollisionShapeTests
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 1f);
 
-        Assert.IsTrue(box.Contains(testCircle), "partial overlap without either square containing a corner");
+        Assert.IsTrue(box.Contains(testCircle), "fully enclosed inside square");
     }
 
     [Test]
@@ -71,7 +71,7 @@ public class CollisionShapeTests
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 5f);
 
-        Assert.IsTrue(box.Contains(testCircle), "partial overlap without either square containing a corner");
+        Assert.IsTrue(box.Contains(testCircle), "fully enclosed inside square");
     }
 
     [Test]
@@ -80,7 +80,16 @@ public class CollisionShapeTests
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 8f);
 
-        Assert.IsTrue(box.Contains(testCircle), "partial overlap without either square containing a corner");
+        Assert.IsFalse(box.Contains(testCircle), "the circle is outside the bounds of the square so it isn't fully contained");
+    }
+
+    [Test]
+    public void CircleContains3V2()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(6f, 8f);
+
+        Assert.IsFalse(box.Contains(testCircle), "the circle is outside the bounds of the square so it isn't fully contained");
     }
 
     [Test]
@@ -89,6 +98,69 @@ public class CollisionShapeTests
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(5f, 3f);
 
-        Assert.IsTrue(box.Contains(testCircle), "partial overlap without either square containing a corner");
+        Assert.IsTrue(box.Contains(testCircle), "fully contained");
+    }
+
+    [Test]
+    public void CircleContains5()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(-5f, 3f);
+
+        Assert.IsFalse(box.Contains(testCircle), "outside the square");
+    }
+
+    [Test]
+    public void CircleContains6()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(3.1f, 3f);
+
+        Assert.IsTrue(box.Contains(testCircle), "fully contained at the very edge of the square");
+    }
+
+    [Test]
+    public void CircleIntersect()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(1f, 50f), 3f);
+
+        Assert.IsTrue(box.Intersects(testCircle), "intersects the left side of square with the majority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect2()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(-1f, 50f), 3f);
+
+        Assert.IsTrue(box.Intersects(testCircle), "intersects the left side of square with the minority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect3()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(5f, 8f);
+
+        Assert.IsTrue(box.Intersects(testCircle), "starts inside the square but expands outside it's bounds");
+    }
+
+    [Test]
+    public void CircleIntersect4()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(50f, 1f), 3f);
+
+        Assert.IsTrue(box.Intersects(testCircle), "intersects the bottom side of square with the majority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect5()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(50f, -1f), 3f);
+
+        Assert.IsTrue(box.Intersects(testCircle), "intersects the bottom side of square with the minority of it's area");
     }
 }

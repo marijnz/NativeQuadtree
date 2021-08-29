@@ -5,10 +5,11 @@ using Unity.Mathematics;
 
 namespace NativeQuadTree.Jobs.Internal
 {
-    internal unsafe struct QuadTreeCircleRangeQuery<T> where T : unmanaged
+    public unsafe struct QuadTreeCircleRangeQuery<T> where T : unmanaged
     {
         private NativeQuadTree<T> tree;
 
+        [NativeDisableUnsafePtrRestrictionAttribute]
         private UnsafeList* fastResults;
         private int count;
 
