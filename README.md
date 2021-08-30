@@ -1,6 +1,8 @@
 # NativeQuadtree
 A Quadtree Native Collection for Unity DOTS. Octree version is here: https://github.com/marijnz/NativeOctree
 
+<img src="Demo Scene.png" width="500"/></br
+
 ## Implementation
 - It's a DOTS native container, meaning it's handling its own unmanaged memory and can be passed into jobs!
 - It currently only supports the storing of points
