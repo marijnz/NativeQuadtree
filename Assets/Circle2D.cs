@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using NativeQuadTree;
 using Unity.Mathematics;
@@ -42,7 +43,7 @@ namespace NativeQuadTree
         internal static bool Intersects(AABB2D a, Circle2D b)
         {
             float2 squareEdgePoint = math.clamp(b.Center, a.Center - a.Extents, a.Center + a.Extents);
-            float distance = math.distance(squareEdgePoint, a.Center);
+            float distance = math.distance(squareEdgePoint, b.Center);
 
             if(a.Contains(b.Center))
             {
@@ -54,7 +55,7 @@ namespace NativeQuadTree
             else
             {
                 // outside box
-                return distance > b.Radious;
+                return distance < b.Radious;
             }
         }
     }

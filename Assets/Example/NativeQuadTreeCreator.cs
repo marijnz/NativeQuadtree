@@ -108,11 +108,11 @@ public class NativeQuadTreeCreator : MonoBehaviour
     {
         if(division > 0)
         {
-            var half = rect.Extents.x * .5f;
-            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x - half, rect.Center.y + half), half), division - 1);
-            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x + half, rect.Center.y + half), half), division - 1);
-            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x - half, rect.Center.y - half), half), division - 1);
-            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x + half, rect.Center.y - half), half), division - 1);
+            var half = rect.Extents / 2f;
+            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x - half.x, rect.Center.y + half.y), half), division - 1);
+            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x + half.x, rect.Center.y + half.y), half), division - 1);
+            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x - half.x, rect.Center.y - half.y), half), division - 1);
+            DrawRectSubdivide(new AABB2D(new float2(rect.Center.x + half.x, rect.Center.y - half.y), half), division - 1);
         }
 
         Gizmos.color = Color.Lerp(new Color(0.34f, 0.34f, 0.34f), new Color(1f, 1f, 1f), (float)division / Depth);

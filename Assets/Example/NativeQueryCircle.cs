@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using NativeQuadTree;
+using NativeQuadTree.Helpers;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -24,7 +25,7 @@ public class NativeQueryCircle : MonoBehaviour
     {
         Circle2D circle = new Circle2D(new float2(trans.position.x, trans.position.y), Radious);
         NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(Tree.tree, Allocator.TempJob);
-        NativeList<QuadElement<int>> results = new NativeList<QuadElement<int>>(200, Allocator.TempJob);
+        NativeList<QuadElement<int>> results = new NativeList<QuadElement<int>>(Tree.tree.EstimateResultSize(circle), Allocator.TempJob);
         
         CircleQueryJob<int> query = new CircleQueryJob<int>(circle, treeRef, results);
         query.Schedule().Complete();

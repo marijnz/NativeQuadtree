@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using NativeQuadTree;
+using NativeQuadTree.Helpers;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -22,11 +23,11 @@ public class NativeQueryRect : MonoBehaviour
 
     void Update()
     {
-        AABB2D circle = new AABB2D(new float2(trans.position.x, trans.position.y), (trans.rect.max - trans.rect.min) / 2f);
+        AABB2D box = new AABB2D(new float2(trans.position.x, trans.position.y), (trans.rect.max - trans.rect.min) / 2f);
         NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(Tree.tree, Allocator.TempJob);
-        NativeList<QuadElement<int>> results = new NativeList<QuadElement<int>>(200, Allocator.TempJob);
+        NativeList<QuadElement<int>> results = new NativeList<QuadElement<int>>(Tree.tree.EstimateResultSize(box), Allocator.TempJob);
         
-        RectQueryJob<int> query = new RectQueryJob<int>(circle, treeRef, results);
+        RectQueryJob<int> query = new RectQueryJob<int>(box, treeRef, results);
         query.Schedule().Complete();
 
         Results = results.ToArray();

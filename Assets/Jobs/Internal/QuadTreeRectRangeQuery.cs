@@ -39,7 +39,7 @@ namespace NativeQuadTree.Jobs.Internal
             var depthSize = LookupTables.DepthSizeLookup[tree.MaxDepth - depth + 1];
             for (int l = 0; l < 4; l++)
             {
-                var childBounds = GetChildBounds(parentBounds, l);
+                var childBounds = RangeQueryHelpers.GetChildBounds(parentBounds, l);
 
                 var contained = parentContained;
                 if(!contained)
@@ -85,20 +85,6 @@ namespace NativeQuadTree.Jobs.Internal
                         }
                     }
                 }
-            }
-        }
-
-        private static AABB2D GetChildBounds(AABB2D parentBounds, int childZIndex)
-        {
-            var half = parentBounds.Extents.x * .5f;
-
-            switch (childZIndex)
-            {
-                case 0: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y + half), half);
-                case 1: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y + half), half);
-                case 2: return new AABB2D(new float2(parentBounds.Center.x - half, parentBounds.Center.y - half), half);
-                case 3: return new AABB2D(new float2(parentBounds.Center.x + half, parentBounds.Center.y - half), half);
-                default: throw new Exception();
             }
         }
     }
