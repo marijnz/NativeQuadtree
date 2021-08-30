@@ -23,9 +23,39 @@ namespace NativeQuadTree
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Intersects(Circle2D b)
+        public bool Contains(AABB2D b)
         {
-            return math.distance(Center, b.Center) <= Radious + b.Radious;
+            // check that all 4 points are inside circle
+            return Contains(b.Center + -b.Extents) &&
+                   Contains(b.Center + new float2(-b.Extents.x, b.Extents.y)) &&
+                   Contains(b.Center + new float2(b.Extents.x, -b.Extents.y)) &&
+                   Contains(b.Center + b.Extents);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Intersects(AABB2D a)
+        {
+            return Intersects(a, this);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static bool Intersects(AABB2D a, Circle2D b)
+        {
+            float2 squareEdgePoint = math.clamp(b.Center, a.Center - a.Extents, a.Center + a.Extents);
+            float distance = math.distance(squareEdgePoint, a.Center);
+
+            if(a.Contains(b.Center))
+            {
+                // inside box
+                /*float length = math.max(a.Extents.x, a.Extents.y);
+                return distance > b.Radious || length < b.Radious;*/
+                return true;
+            }
+            else
+            {
+                // outside box
+                return distance > b.Radious;
+            }
         }
     }
 }

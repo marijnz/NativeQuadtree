@@ -9,7 +9,7 @@ namespace NativeQuadTree.Jobs.Internal
     {
         private NativeQuadTree<T> tree;
 
-        [NativeDisableUnsafePtrRestrictionAttribute]
+        [NativeDisableUnsafePtrRestriction]
         private UnsafeList* fastResults;
         private int count;
 
@@ -44,11 +44,11 @@ namespace NativeQuadTree.Jobs.Internal
                 var contained = parentContained;
                 if(!contained)
                 {
-                    if(childBounds.Contains(bounds))
+                    if(bounds.Contains(childBounds))
                     {
                         contained = true;
                     }
-                    else if(!childBounds.Intersects(bounds))
+                    else if(!bounds.Intersects(childBounds))
                     {
                         continue;
                     }

@@ -57,7 +57,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains()
+    public void SquareCircleContains()
     {
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 1f);
@@ -66,7 +66,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains2()
+    public void SquareCircleContains2()
     {
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 5f);
@@ -75,7 +75,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains3()
+    public void SquareCircleContains3()
     {
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 8f);
@@ -84,7 +84,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains3V2()
+    public void SquareCircleContains3V2()
     {
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(6f, 8f);
@@ -93,7 +93,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains4()
+    public void SquareCircleContains4()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(5f, 3f);
@@ -102,7 +102,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains5()
+    public void SquareCircleContains5()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(-5f, 3f);
@@ -111,7 +111,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleContains6()
+    public void SquareCircleContains6()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(3.1f, 3f);
@@ -120,7 +120,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleIntersect()
+    public void SquareCircleIntersect()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(new float2(1f, 50f), 3f);
@@ -129,7 +129,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleIntersect2()
+    public void SquareCircleIntersect2()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(new float2(-1f, 50f), 3f);
@@ -138,7 +138,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleIntersect3()
+    public void SquareCircleIntersect3()
     {
         AABB2D box = new AABB2D(new float2(5f), new float2(5f));
         Circle2D testCircle = new Circle2D(5f, 8f);
@@ -147,7 +147,7 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleIntersect4()
+    public void SquareCircleIntersect4()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(new float2(50f, 1f), 3f);
@@ -156,11 +156,137 @@ public class CollisionShapeTests
     }
 
     [Test]
-    public void CircleIntersect5()
+    public void SquareCircleIntersect5()
     {
         AABB2D box = new AABB2D(new float2(50f), new float2(50f));
         Circle2D testCircle = new Circle2D(new float2(50f, -1f), 3f);
 
         Assert.IsTrue(box.Intersects(testCircle), "intersects the bottom side of square with the minority of it's area");
+    }
+
+    [Test]
+    public void CircleContains()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(5f, 1f);
+
+        Assert.IsFalse(testCircle.Contains(box), "fully enclosed inside square, so circle doesn't contain the entire box");
+    }
+
+    [Test]
+    public void CircleContains2()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(5f, 5f);
+
+        Assert.IsFalse(testCircle.Contains(box), "circle fully enclosed inside square, so circle doesn't contain the entire box");
+    }
+
+    [Test]
+    public void CircleContains3()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(5f, 8f);
+
+        Assert.IsTrue(testCircle.Contains(box), "the circle fully contains the box");
+    }
+
+    [Test]
+    public void CircleContains3V2()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(6f, 8f);
+
+        Assert.IsFalse(testCircle.Contains(box), "the circle is outside the bounds of the square so it isn't fully contained");
+    }
+
+    [Test]
+    public void CircleContains4()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(5f, 3f);
+
+        Assert.IsFalse(testCircle.Contains(box), "box is fully around the circle, so circle can't contain the box");
+    }
+
+    [Test]
+    public void CircleContains5()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(-5f, 3f);
+
+        Assert.IsFalse(testCircle.Contains(box), "outside the square");
+    }
+
+    [Test]
+    public void CircleContains6()
+    {
+        Circle2D testCircle = new Circle2D(5f, 10f);
+        AABB2D box = new AABB2D(new float2(5), new float2(6f));
+
+        Assert.IsTrue(testCircle.Contains(box), "box is fully contained");
+    }
+
+    [Test]
+    public void CircleContains7()
+    {
+        Circle2D testCircle = new Circle2D(5f, 10f);
+        AABB2D box = new AABB2D(new float2(3), new float2(1f));
+
+        Assert.IsTrue(testCircle.Contains(box), "box is fully contained");
+    }
+
+    [Test]
+    public void CircleIntersect()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(1f, 50f), 3f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "intersects the left side of square with the majority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect2()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(-1f, 50f), 3f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "intersects the left side of square with the minority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect3()
+    {
+        AABB2D box = new AABB2D(new float2(5f), new float2(5f));
+        Circle2D testCircle = new Circle2D(5f, 8f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "starts inside the square but expands outside it's bounds");
+    }
+
+    [Test]
+    public void CircleIntersect4()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(50f, 1f), 3f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "intersects the bottom side of square with the majority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect5()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(50f, -1f), 3f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "intersects the bottom side of square with the minority of it's area");
+    }
+
+    [Test]
+    public void CircleIntersect6()
+    {
+        AABB2D box = new AABB2D(new float2(50f), new float2(50f));
+        Circle2D testCircle = new Circle2D(new float2(5f, 5f), 3f);
+
+        Assert.IsTrue(testCircle.Intersects(box), "the circle is fully inside the box which means it intersects the box area... not the edge");
     }
 }

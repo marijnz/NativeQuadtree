@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using PlasticGui.WorkspaceWindow.Items;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace NativeQuadTree
 {
@@ -20,6 +21,12 @@ namespace NativeQuadTree
         {
             Center = center;
             Extents = extents;
+        }
+        
+        public AABB2D(RectTransform rect)
+        {
+            Center = new float2(rect.position.x, rect.position.y);
+            Extents = new float2((rect.rect.max - rect.rect.min) / 2f);
         }
 
         public bool Contains(float2 point)
@@ -77,20 +84,7 @@ namespace NativeQuadTree
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Intersects(Circle2D b)
         {
-            float2 squareEdgePoint = math.clamp(b.Center, Center - Extents, Center + Extents);
-            float distance = math.distance(squareEdgePoint, Center);
-
-            if(Contains(b.Center))
-            {
-                // inside box
-                float length = math.max(Extents.x, Extents.y);
-                return distance > b.Radious || length < b.Radious;
-            }
-            else
-            {
-                // outside box
-                return distance > b.Radious;
-            }
+            return Circle2D.Intersects(this, b);
         }
 
         public bool Intersects(AABB2D b)
