@@ -31,11 +31,6 @@ namespace NativeQuadTree.Jobs.Internal
 
         public void RecursiveRangeQuery(AABB2D parentBounds, bool parentContained, int prevOffset, int depth)
         {
-            if(count + 4 * tree.MaxLeafElements > fastResults->Capacity)
-            {
-                fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, count + 4 * tree.MaxLeafElements));
-            }
-
             var depthSize = LookupTables.DepthSizeLookup[tree.MaxDepth - depth + 1];
             for (int l = 0; l < 4; l++)
             {
@@ -68,6 +63,13 @@ namespace NativeQuadTree.Jobs.Internal
 
                     if(contained)
                     {
+                        // expand to make sure the data will fit without making the result list over-sized
+                        int targetElementSize = count + (node.count * 4);
+                        if(targetElementSize > fastResults->Capacity)
+                        {
+                            fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, targetElementSize));
+                        }
+                        
                         void* source = (void*) ((IntPtr) tree.elements->Ptr + node.firstChildIndex * UnsafeUtility.SizeOf<QuadElement<T>>());
                         void* destination = (void*) ((IntPtr) fastResults->Ptr + count * UnsafeUtility.SizeOf<QuadElement<T>>());
                         UnsafeUtility.MemCpy(destination, source, node.count * UnsafeUtility.SizeOf<QuadElement<T>>());
@@ -75,6 +77,13 @@ namespace NativeQuadTree.Jobs.Internal
                     }
                     else
                     {
+                        // expand to make sure the data will fit without making the result list over-sized
+                        int targetElementSize = count + (node.count * 2);
+                        if(targetElementSize > fastResults->Capacity)
+                        {
+                            fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, targetElementSize));
+                        }
+
                         for (int k = 0; k < node.count; k++)
                         {
                             var element = UnsafeUtility.ReadArrayElement<QuadElement<T>>(tree.elements->Ptr, node.firstChildIndex + k);

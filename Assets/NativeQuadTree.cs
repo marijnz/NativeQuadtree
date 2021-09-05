@@ -124,16 +124,15 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
 #endif
-#if UNITY_ASSERTIONS
-			//int totalSize = LookupTables.DepthSizeLookup[maxDepth+1];
-			//Assert.IsTrue(totalSize >= incomingElements.Length, $"Quad tree size is limited to {totalSize}, attempting to store {incomingElements.Length} items");
-#endif
 
 			// Resize if needed
 			if(elements->Capacity < elementsCount + incomingElements.Length)
 			{
 				elements->Resize<QuadElement<T>>(math.max(incomingElements.Length, elements->Capacity*2));
 			}
+			
+			// this is needed so that future resize/move operations correctly copy the expected amount of data to the new location
+			elements->Length = elements->Capacity;
 		}
 
 		[BurstCompatible]
@@ -250,6 +249,7 @@ namespace NativeQuadTree
 					QuadNode node = new QuadNode {firstChildIndex = elementsCount, count = 0, isLeaf = true };
 					UnsafeUtility.WriteArrayElement(nodes->Ptr, at, node);
 					elementsCount += elementCount;
+					nodes->Length = math.max(nodes->Length, at + 1);
 				}
 			}
 		}
@@ -275,9 +275,15 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
 #endif
+			// todo check if MemClear is actually needed as used elements will just be overriden anyway
+			
 			UnsafeUtility.MemClear(lookup->Ptr, lookup->Capacity * UnsafeUtility.SizeOf<int>());
+			lookup->Clear();
 			UnsafeUtility.MemClear(nodes->Ptr, nodes->Capacity * UnsafeUtility.SizeOf<QuadNode>());
+			nodes->Clear();
 			UnsafeUtility.MemClear(elements->Ptr, elements->Capacity * UnsafeUtility.SizeOf<QuadElement<T>>());
+			elements->Clear();
+			
 			elementsCount = 0;
 		}
 
