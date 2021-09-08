@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using NativeQuadTree;
+using NativeQuadTree.Helpers;
 using NativeQuadTree.Jobs;
 using Unity.Collections;
 using Unity.Jobs;
@@ -34,17 +35,16 @@ public class NativeQuadTreeCreator : MonoBehaviour
 
         do
         { 
-            float x = Random.Range(rect.Center.x - rect.Extents.x, rect.Center.x + rect.Extents.x);
-            float y = Random.Range(rect.Center.y - rect.Extents.y, rect.Center.y + rect.Extents.y);
-            float2 testPos = new float2(x, y);
+            float2 testPos = new float2(
+                Random.Range(rect.Center.x - rect.Extents.x, rect.Center.x + rect.Extents.x), 
+                Random.Range(rect.Center.y - rect.Extents.y, rect.Center.y + rect.Extents.y));
 
             if(rect.Contains(testPos))
             {
-                QuadElement<int> element = new QuadElement<int>()
+                Positions.Add(new QuadElement<int>()
                 {
                     Pos = testPos
-                };
-                Positions.Add(element);
+                });
             }
         }
         while (Positions.Count < PositionCount);
@@ -58,6 +58,9 @@ public class NativeQuadTreeCreator : MonoBehaviour
         stopwatch.Stop();
         Debug.Log("Bulk Add Duration: " + stopwatch.ElapsedMilliseconds + " ms");
 
+        ValidationHelpers.ValidateNativeTreeContent(bulkJob.QuadTree, bulkJob.Elements);
+        ValidationHelpers.BruteForceLocationHitCheck(bulkJob.QuadTree, bulkJob.Elements);
+        
         bulkJob.Elements.Dispose();
         bulkJob.QuadTree.Dispose();
     }

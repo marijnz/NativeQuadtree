@@ -1,5 +1,8 @@
+using System.Diagnostics;
+
 namespace NativeQuadTree
 {
+    [DebuggerDisplay("QuadNode Count: {" + nameof(count) + "}{" + nameof(isLeaf) + " ? \", Leaf\" : \"\", nq}")]
     internal struct QuadNode
     {
         // Points to this node's first child index in elements

@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using NUnit.Framework;
 using NativeQuadTree;
+using NativeQuadTree.Helpers;
 using NativeQuadTree.Jobs;
 using Unity.Burst;
 using Unity.Collections;
@@ -131,6 +132,33 @@ public class QuadTreeTests
         
         quadTree.Dispose();
         positions.Dispose();
+        elements.Dispose();
+    }
+
+    [Test]
+    public void SimpleNativeQuery([NUnit.Framework.Range(19, 21)] int count)
+    {
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(count, Allocator.TempJob);
+        for (int i = 0; i < count; i++)
+        {
+            elements[i] = new QuadElement<int>
+            {
+                Pos = new float2(0.1f + (0.02f * i), 1f),
+                Element = i
+            };
+        }
+
+        const int size = 30;
+        AABB2D bounds = new AABB2D(new float2(size, 4f), new float2(size, 4f));
+        NativeQuadTree<int> quadTree = new NativeQuadTree<int>(bounds, Allocator.TempJob, maxDepth: 4, maxLeafElements: 20);
+        quadTree.ClearAndBulkInsert(elements);
+
+        NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(quadTree, Allocator.TempJob);
+        ValidationHelpers.ValidateNativeTreeContent(treeRef, elements);
+        ValidationHelpers.BruteForceLocationHitCheck(treeRef, elements);
+
+        treeRef.Dispose();
+        quadTree.Dispose();
         elements.Dispose();
     }
 }

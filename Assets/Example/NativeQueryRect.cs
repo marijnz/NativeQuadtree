@@ -69,7 +69,7 @@ public class NativeQueryRect : MonoBehaviour
             
             Gizmos.DrawLine(
                 new Vector3(xMin, yMin), 
-                new Vector3(xMin, yMin));
+                new Vector3(xMax, yMin));
             Gizmos.DrawLine(
                 new Vector3(xMin, yMax), 
                 new Vector3(xMax, yMax));
