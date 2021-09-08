@@ -329,8 +329,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8f3a2756cc3eca64d9742d7ae481dca7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Depth: 3
-  LeafUnits: 200
+  Depth: 5
+  LeafUnits: 1000
   PositionCount: 2000
 --- !u!224 &1933793338
 RectTransform:
