@@ -86,12 +86,14 @@ namespace NativeQuadTree
 				totalSize,
 				allocator,
 				NativeArrayOptions.ClearMemory);
+			lookup->Length = totalSize;
 
 			nodes = UnsafeList.Create(UnsafeUtility.SizeOf<QuadNode>(),
 				UnsafeUtility.AlignOf<QuadNode>(),
 				totalSize,
 				allocator,
 				NativeArrayOptions.ClearMemory);
+			nodes->Length = totalSize;
 
 			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(),
 				UnsafeUtility.AlignOf<QuadElement<T>>(),
@@ -145,15 +147,15 @@ namespace NativeQuadTree
 				{
 					QuadNode node = UnsafeUtility.ReadArrayElement<QuadNode>(nodes->Ptr, atIndex);
 					if(node.isLeaf)
-					{
-						#if UNITY_ASSERTIONS
-						AssertIsTrue(atIndex, node.count);
-						#endif
-						
+					{	
 						// We found a leaf, add this element to it and move to the next element
 						UnsafeUtility.WriteArrayElement(elements->Ptr, node.firstChildIndex + node.count, incomingElements[i]);
 						node.count++;
 						UnsafeUtility.WriteArrayElement(nodes->Ptr, atIndex, node);
+
+#if UNITY_ASSERTIONS
+						AssertLeafCapacityExceed(atIndex, node.count);
+#endif
 						break;
 					}
 					// No leaf found, we keep going deeper until we find one
@@ -163,7 +165,7 @@ namespace NativeQuadTree
 		}
 
 		[BurstDiscard, StringFormatMethod("message")]
-		private void AssertIsTrue(int index, int nodeCount)
+		private void AssertLeafCapacityExceed(int index, int nodeCount)
 		{
 			if(nodeCount > maxLeafElements)
 			{
@@ -249,7 +251,6 @@ namespace NativeQuadTree
 					QuadNode node = new QuadNode {firstChildIndex = elementsCount, count = 0, isLeaf = true };
 					UnsafeUtility.WriteArrayElement(nodes->Ptr, at, node);
 					elementsCount += elementCount;
-					nodes->Length = math.max(nodes->Length, at + 1);
 				}
 			}
 		}
@@ -275,12 +276,9 @@ namespace NativeQuadTree
 #if ENABLE_UNITY_COLLECTIONS_CHECKS && !NATIVE_QUAD_TREE_ECS_USAGE
 			AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(safetyHandle);
 #endif
-			// todo check if MemClear is actually needed as used elements will just be overriden anyway
 			
 			UnsafeUtility.MemClear(lookup->Ptr, lookup->Capacity * UnsafeUtility.SizeOf<int>());
-			lookup->Clear();
 			UnsafeUtility.MemClear(nodes->Ptr, nodes->Capacity * UnsafeUtility.SizeOf<QuadNode>());
-			nodes->Clear();
 			UnsafeUtility.MemClear(elements->Ptr, elements->Capacity * UnsafeUtility.SizeOf<QuadElement<T>>());
 			elements->Clear();
 			

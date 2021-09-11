@@ -31,16 +31,16 @@ namespace NativeQuadTree
 
         public bool Contains(float2 point)
         {
-            if(point[0] < Center[0] - Extents[0])
+            if(point.x < Center.x - Extents.x)
                 return false;
 
-            if(point[0] > Center[0] + Extents[0])
+            if(point.x > Center.x + Extents.x)
                 return false;
 
-            if(point[1] < Center[1] - Extents[1])
+            if(point.y < Center.y - Extents.y)
                 return false;
 
-            if(point[1] > Center[1] + Extents[1])
+            if(point.y > Center.y + Extents.y)
                 return false;
 
             return true;
@@ -96,8 +96,8 @@ namespace NativeQuadTree
 //
             //return !noOverlap;
 
-            return (math.abs(Center[0] - b.Center[0]) < (Extents[0] + b.Extents[0])) &&
-                   (math.abs(Center[1] - b.Center[1]) < (Extents[1] + b.Extents[1]));
+            return (math.abs(Center.x - b.Center.x) < (Extents.x + b.Extents.x)) &&
+                   (math.abs(Center.y - b.Center.y) < (Extents.y + b.Extents.y));
         }
     }
 }
