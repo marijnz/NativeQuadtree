@@ -161,11 +161,21 @@ namespace NativeQuadTree
 					// No leaf found, we keep going deeper until we find one
 					atIndex = IncrementIndex(depth, mortonCodes, i, atIndex);
 				}
+				
+#if UNITY_ASSERTIONS
+				AssertLeafCapacityExceed(i, atIndex);
+#endif
 			}
 		}
 
 		[BurstDiscard, StringFormatMethod("message")]
-		private void AssertLeafCapacityExceed(int index, int nodeCount)
+		private void AssertLeafCapacityExceed(int elementIndex, int nextNodeIndex)
+		{
+			Assert.IsFalse(elementIndex > nodes->Length, $"Failed to add element[{elementIndex}] to quad tree data!");
+		}
+
+		[BurstDiscard, StringFormatMethod("message")]
+		private void AssertCorrectAdd(int index, int nodeCount)
 		{
 			if(nodeCount > maxLeafElements)
 			{
@@ -235,6 +245,17 @@ namespace NativeQuadTree
 
 		internal void RecursivePrepareLeaves(int prevOffset, int depth)
 		{
+#if UNITY_ASSERTIONS
+			if(depth == 1)
+			{
+				int[] data = new int[lookup->Length];
+				for (int i = 0; i < data.Length; i++)
+				{
+					data[i] = UnsafeUtility.ReadArrayElement<int>(lookup->Ptr, i);
+				}
+			}
+#endif
+			
 			for (int l = 0; l < 4; l++)
 			{
 				int at = prevOffset + l * LookupTables.DepthSizeLookup[m_maxDepth - depth+1];

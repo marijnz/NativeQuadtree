@@ -248,4 +248,73 @@ public class QuadTreeTests
         quadTree.Dispose();
         elements.Dispose();
     }
+
+    [Test]
+    public void LargeUtilisation()
+    {
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(600, Allocator.TempJob);
+        for (int i = 0; i < elements.Length; i++)
+        {
+            elements[i] = new QuadElement<int>() { Pos = new float2(0.01f * i, 3f) };
+        }
+
+        AABB2D bounds = new AABB2D(5f, 10f);
+        NativeQuadTree<int> quadTree = new NativeQuadTree<int>(bounds, Allocator.TempJob, maxDepth: 5, maxLeafElements: 600);
+        quadTree.ClearAndBulkInsert(elements);
+
+        NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(quadTree, Allocator.TempJob);
+        ValidationHelpers.PrintDepthUtilisation(treeRef);
+        ValidationHelpers.ValidateNativeTreeContent(treeRef, elements);
+        ValidationHelpers.BruteForceLocationHitCheck(treeRef, elements);
+        
+        treeRef.Dispose();
+        quadTree.Dispose();
+        elements.Dispose();
+    }
+
+    [Test]
+    public void LargeUtilisation2()
+    {
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(1040, Allocator.TempJob);
+        for (int i = 0; i < elements.Length; i++)
+        {
+            elements[i] = new QuadElement<int>() { Pos = new float2(0.01f * i, 3f) };
+        }
+
+        AABB2D bounds = new AABB2D(new float2(22f, 5f), new float2(44f, 6));
+        NativeQuadTree<int> quadTree = new NativeQuadTree<int>(bounds, Allocator.TempJob, maxDepth: 5, maxLeafElements: 1000);
+        quadTree.ClearAndBulkInsert(elements);
+
+        NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(quadTree, Allocator.TempJob);
+        ValidationHelpers.PrintDepthUtilisation(treeRef);
+        ValidationHelpers.ValidateNativeTreeContent(treeRef, elements);
+        ValidationHelpers.BruteForceLocationHitCheck(treeRef, elements);
+        
+        treeRef.Dispose();
+        quadTree.Dispose();
+        elements.Dispose();
+    }
+
+    [Test]
+    public void LargeUtilisation3()
+    {
+        NativeArray<QuadElement<int>> elements = new NativeArray<QuadElement<int>>(400, Allocator.TempJob);
+        for (int i = 0; i < elements.Length; i++)
+        {
+            elements[i] = new QuadElement<int>() { Pos = new float2(0.05f * i, 3f) };
+        }
+
+        AABB2D bounds = new AABB2D(new float2(22f, 5f), new float2(44f, 6));
+        NativeQuadTree<int> quadTree = new NativeQuadTree<int>(bounds, Allocator.TempJob, maxDepth: 7, maxLeafElements: 300);
+        quadTree.ClearAndBulkInsert(elements);
+
+        NativeReference<NativeQuadTree<int>> treeRef = new NativeReference<NativeQuadTree<int>>(quadTree, Allocator.TempJob);
+        ValidationHelpers.PrintDepthUtilisation(treeRef);
+        ValidationHelpers.ValidateNativeTreeContent(treeRef, elements);
+        ValidationHelpers.BruteForceLocationHitCheck(treeRef, elements);
+        
+        treeRef.Dispose();
+        quadTree.Dispose();
+        elements.Dispose();
+    }
 }
