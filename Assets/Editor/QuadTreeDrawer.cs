@@ -1,4 +1,5 @@
 using NativeQuadTree;
+using NativeQuadTree.Jobs;
 using Unity.Collections;
 using UnityEditor;
 using UnityEngine;
@@ -14,10 +15,12 @@ public class QuadTreeDrawer : EditorWindow
 	public static void Draw<T>(NativeQuadTree<T> quadTree) where T : unmanaged
 	{
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
-		window.DoDraw(quadTree, default, default);
+		NativeList<QuadElement<T>> results = new NativeList<QuadElement<T>>(Allocator.TempJob);
+		window.DoDraw(quadTree, results, default);
+		results.Dispose();
 	}
 
-	public static void DrawWithResults<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged
+	public static void DrawWithResults<T>(RangeQueryJob<T> queryJob) where T : unmanaged
 	{
 		QuadTreeDrawer window = (QuadTreeDrawer)GetWindow(typeof(QuadTreeDrawer));
 		window.DoDraw(queryJob);
@@ -33,10 +36,10 @@ public class QuadTreeDrawer : EditorWindow
 		{
 			pixels[i] = new Color[256];
 		}
-		NativeQuadTree<T>.Draw(quadTree, results, bounds, pixels);
+		NativeQuadTreeDrawHelpers<T>.Draw(quadTree, results, bounds, pixels);
 	}
 
-	void DoDraw<T>(QuadTreeJobs.RangeQueryJob<T> queryJob) where T : unmanaged
+	void DoDraw<T>(RangeQueryJob<T> queryJob) where T : unmanaged
 	{
 		DoDraw(queryJob.QuadTree, queryJob.Results, queryJob.Bounds);
 	}

@@ -1,0 +1,19 @@
+{
+    "name": "NativeQuadTree.Example",
+    "rootNamespace": "",
+    "references": [
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:4259b4454b3b86a4790bd00dd10d9797",
+        "GUID:8a2eafa29b15f444eb6d74f94a930e1d",
+        "GUID:e0cd26848372d4e5c891c569017e11f1"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
