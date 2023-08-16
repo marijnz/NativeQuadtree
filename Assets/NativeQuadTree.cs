@@ -2,6 +2,7 @@
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace NativeQuadTree
 {
@@ -39,13 +40,13 @@ namespace NativeQuadTree
 #endif
 		// Data
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* elements;
+		UnsafeList<QuadElement<T>>* elements;
 
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* lookup;
+		UnsafeList<int>* lookup;
 
 		[NativeDisableUnsafePtrRestriction]
-		UnsafeList* nodes;
+		UnsafeList<QuadNode>* nodes;
 
 		int elementsCount;
 
@@ -75,27 +76,25 @@ namespace NativeQuadTree
 			}
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-			CollectionHelper.CheckIsUnmanaged<T>();
+			// TODO: Find out what the equivalent of this is in latest entities
+            // CollectionHelper.CheckIsUnmanaged<T>();
 			DisposeSentinel.Create(out safetyHandle, out disposeSentinel, 1, allocator);
 #endif
 
 			// Allocate memory for every depth, the nodes on all depths are stored in a single continuous array
 			var totalSize = LookupTables.DepthSizeLookup[maxDepth+1];
 
-			lookup = UnsafeList.Create(UnsafeUtility.SizeOf<int>(),
-				UnsafeUtility.AlignOf<int>(),
+			lookup = UnsafeList<int>.Create(
 				totalSize,
 				allocator,
 				NativeArrayOptions.ClearMemory);
 
-			nodes = UnsafeList.Create(UnsafeUtility.SizeOf<QuadNode>(),
-				UnsafeUtility.AlignOf<QuadNode>(),
+			nodes = UnsafeList<QuadNode>.Create(
 				totalSize,
 				allocator,
 				NativeArrayOptions.ClearMemory);
 
-			elements = UnsafeList.Create(UnsafeUtility.SizeOf<QuadElement<T>>(),
-				UnsafeUtility.AlignOf<QuadElement<T>>(),
+			elements = UnsafeList<QuadElement<T>>.Create(
 				initialElementsCapacity,
 				allocator);
 		}
@@ -113,7 +112,7 @@ namespace NativeQuadTree
 			// Resize if needed
 			if(elements->Capacity < elementsCount + incomingElements.Length)
 			{
-				elements->Resize<QuadElement<T>>(math.max(incomingElements.Length, elements->Capacity*2));
+				elements->Resize(math.max(incomingElements.Length, elements->Capacity*2));
 			}
 
 			// Prepare morton codes
@@ -224,12 +223,12 @@ namespace NativeQuadTree
 		}
 
 		public void Dispose()
-		{
-			UnsafeList.Destroy(elements);
+        {
+			UnsafeList<QuadElement<T>>.Destroy(elements);
 			elements = null;
-			UnsafeList.Destroy(lookup);
+			UnsafeList<int>.Destroy(lookup);
 			lookup = null;
-			UnsafeList.Destroy(nodes);
+			UnsafeList<QuadNode>.Destroy(nodes);
 			nodes = null;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
 			DisposeSentinel.Dispose(ref safetyHandle, ref disposeSentinel);

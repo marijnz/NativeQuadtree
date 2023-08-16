@@ -43,10 +43,11 @@ public class QuadTreeTests
             };
         }
 
+        using var quadtree = new NativeQuadTree<int>(Bounds, Allocator.TempJob);
         var job = new QuadTreeJobs.AddBulkJob<int>
         {
             Elements = elements,
-            QuadTree = new NativeQuadTree<int>(Bounds)
+            QuadTree = quadtree,
         };
 
         var s = Stopwatch.StartNew();
@@ -56,8 +57,7 @@ public class QuadTreeTests
         s.Stop();
         Debug.Log(s.Elapsed.TotalMilliseconds);
 
-        QuadTreeDrawer.Draw(job.QuadTree);
-        job.QuadTree.Dispose();
+        QuadTreeDrawer.Draw(quadtree);
         elements.Dispose();
     }
 

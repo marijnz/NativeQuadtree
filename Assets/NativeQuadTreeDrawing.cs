@@ -12,7 +12,7 @@ namespace NativeQuadTree
 	{
 		public static void Draw(NativeQuadTree<T> tree, NativeList<QuadElement<T>> results, AABB2D range,
 			Color[][] texture)
-		{
+        {
 			var widthMult = texture.Length / tree.bounds.Extents.x * 2 / 2 / 2;
 			var heightMult = texture[0].Length / tree.bounds.Extents.y * 2 / 2 / 2;
 
@@ -36,13 +36,16 @@ namespace NativeQuadTree
 				}
 			}
 
-			foreach (var element in results)
-			{
-				texture[(int) ((element.pos.x + widthAdd) * widthMult)]
-					[(int) ((element.pos.y + heightAdd) * heightMult)] = Color.green;
-			}
+            if (results.IsCreated)
+            {
+                foreach (var element in results)
+                {
+                    texture[(int)((element.pos.x + widthAdd) * widthMult)]
+                        [(int)((element.pos.y + heightAdd) * heightMult)] = Color.green;
+                }
+            }
 
-			DrawBounds(texture, range, tree);
+            DrawBounds(texture, range, tree);
 		}
 
 		static void DrawBounds(Color[][] texture, AABB2D bounds, NativeQuadTree<T> tree)
