@@ -11,7 +11,7 @@ namespace NativeQuadTree
 		{
 			NativeQuadTree<T> tree;
 
-			UnsafeList* fastResults;
+			UnsafeList<T>* fastResults;
 			int count;
 
 			AABB2D bounds;
@@ -23,7 +23,7 @@ namespace NativeQuadTree
 				count = 0;
 
 				// Get pointer to inner list data for faster writing
-				fastResults = (UnsafeList*) NativeListUnsafeUtility.GetInternalListDataPtrUnchecked(ref results);
+				fastResults = (UnsafeList<T>*) NativeListUnsafeUtility.GetInternalListDataPtrUnchecked(ref results);
 
 				RecursiveRangeQuery(tree.bounds, false, 1, 1);
 
@@ -34,7 +34,7 @@ namespace NativeQuadTree
 			{
 				if(count + 4 * tree.maxLeafElements > fastResults->Capacity)
 				{
-					fastResults->Resize<QuadElement<T>>(math.max(fastResults->Capacity * 2, count + 4 * tree.maxLeafElements));
+					fastResults->Resize(math.max(fastResults->Capacity * 2, count + 4 * tree.maxLeafElements));
 				}
 
 				var depthSize = LookupTables.DepthSizeLookup[tree.maxDepth - depth+1];
